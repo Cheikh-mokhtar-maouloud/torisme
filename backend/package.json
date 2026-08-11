@@ -11,7 +11,9 @@
     "seed": "tsx scripts/seed.ts",
     "smoke": "tsx scripts/smoke-test.ts",
     "create-admin": "tsx scripts/create-admin.ts",
-    "test:uploads": "node scripts/upload-test.mjs"
+    "test:uploads": "node scripts/upload-test.mjs",
+    "test:concurrency": "node scripts/concurrency-test.mjs",
+    "test:auth": "node scripts/auth-test.mjs"
   },
   "dependencies": {
     "@tourism/shared": "*",
