@@ -94,6 +94,29 @@ ces corps à l'API pour s'assurer que formulaires et schémas Zod ne divergent p
 > machine. Renseigner l'IP locale du poste de développement dans
 > `mobile/.env.local` (`EXPO_PUBLIC_API_URL=http://192.168.x.x:4000`).
 
+### Vérification d'un déploiement
+
+```bash
+npm run verify:deployment <url-backend> [url-dashboard]
+```
+
+Contrôle HTTPS, en-têtes de sécurité, CORS, protection des écritures et
+non-exposition des brouillons. Voir [deployment.md](deployment.md).
+
+### Créer un administrateur
+
+Le seed est réservé au développement, et l'inscription publique ne crée que des
+comptes `USER`. Sur une base neuve — production comprise — le premier
+administrateur se crée avec :
+
+```bash
+ADMIN_EMAIL=… ADMIN_PASSWORD=… npm run create-admin --workspace backend
+```
+
+Le script est idempotent : relancé sur un email existant, il promeut le compte
+sans toucher au mot de passe. C'est aussi la sortie de secours si le dernier
+administrateur est verrouillé dehors.
+
 ## Contrôles qualité
 
 ```bash

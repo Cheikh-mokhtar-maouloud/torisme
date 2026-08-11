@@ -65,7 +65,7 @@ npm run build          # build de production backend + dashboard
 | 1     | Fondation du monorepo                | ✅ terminée |
 | 2     | Modèles et endpoints backend         | ✅ terminée |
 | 3     | Dashboard et CRUD                    | ✅ terminée |
-| 4     | Premier déploiement                  | à venir    |
+| 4     | Préparation du déploiement           | ✅ terminée |
 | 5–16  | Mobile, carte, photos, réservations, notifications, temps réel, mise à l'échelle | à venir |
 
 ## Licence
