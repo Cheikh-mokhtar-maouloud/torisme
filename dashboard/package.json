@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start --port 3000",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "smoke": "node scripts/smoke-test.mjs",
+    "test:payloads": "tsx scripts/payload-test.ts"
   },
   "dependencies": {
     "@tourism/shared": "*",
@@ -23,6 +25,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "tsx": "^4.23.12"
   }
 }

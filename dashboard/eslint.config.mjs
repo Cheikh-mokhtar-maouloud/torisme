@@ -12,6 +12,12 @@ const eslintConfig = defineConfig([
       '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
     },
   },
+  {
+    // Les scripts de test s'exécutent au terminal : leur sortie console est
+    // leur raison d'être, pas un oubli de débogage.
+    files: ['scripts/**'],
+    rules: { 'no-console': 'off' },
+  },
   globalIgnores(['.next/**', 'out/**', 'build/**', 'next-env.d.ts']),
 ]);
 
