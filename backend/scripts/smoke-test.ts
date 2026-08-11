@@ -302,6 +302,106 @@ async function run(): Promise<void> {
   const missing = await call('/api/hotels/000000000000000000000000');
   check('Identifiant inexistant → 404', missing.status === 404, missing.body);
 
+  /* --- Carte ---------------------------------------------------------------- */
+  console.log('\nCarte');
+
+  const map = await call('/api/map');
+  const mapData = map.body.data as
+    | {
+        markers?: Array<{
+          type: string;
+          latitude: number;
+          longitude: number;
+          name: string;
+          distanceMeters?: number;
+        }>;
+        countsByType?: Record<string, number>;
+        truncated?: boolean;
+      }
+    | undefined;
+
+  check('GET /api/map est public → 200', map.status === 200, map.body);
+  check(
+    'Les quatre types de lieux sont représentés',
+    Object.keys(mapData?.countsByType ?? {}).length === 4,
+    mapData?.countsByType,
+  );
+  check(
+    'Chaque marqueur porte des coordonnées nommées',
+    (mapData?.markers ?? []).every(
+      (marker) => typeof marker.latitude === 'number' && typeof marker.longitude === 'number',
+    ),
+  );
+  check(
+    'Les coordonnées restent dans les limites de la Mauritanie',
+    (mapData?.markers ?? []).every(
+      (marker) =>
+        marker.latitude >= 14 &&
+        marker.latitude <= 28 &&
+        marker.longitude >= -18 &&
+        marker.longitude <= -4,
+    ),
+    (mapData?.markers ?? []).slice(0, 2),
+  );
+
+  // Mode « autour de moi » : $geoNear expose la distance et trie dessus.
+  const nearby = await call('/api/map?latitude=18.0735&longitude=-15.9582&radiusMeters=20000');
+  const nearbyMarkers =
+    (nearby.body.data as { markers?: Array<{ distanceMeters?: number }> } | undefined)?.markers ??
+    [];
+
+  check('Recherche par proximité → 200', nearby.status === 200, nearby.body);
+  check(
+    'Chaque marqueur porte sa distance',
+    nearbyMarkers.length > 0 &&
+      nearbyMarkers.every((marker) => typeof marker.distanceMeters === 'number'),
+    nearbyMarkers.slice(0, 2),
+  );
+  check(
+    'Les marqueurs sont triés par distance croissante, tous types confondus',
+    nearbyMarkers.every(
+      (marker, index) =>
+        index === 0 ||
+        (marker.distanceMeters ?? 0) >= (nearbyMarkers[index - 1]?.distanceMeters ?? 0),
+    ),
+    nearbyMarkers.map((marker) => marker.distanceMeters),
+  );
+  check(
+    'Le rayon est respecté',
+    nearbyMarkers.every((marker) => (marker.distanceMeters ?? 0) <= 20_000),
+  );
+
+  // Cadre visible : ne renvoie que ce qui s'y trouve.
+  const inBounds = await call('/api/map?swLat=20.3&swLng=-12.5&neLat=20.6&neLng=-12.2');
+  const boundedMarkers =
+    (inBounds.body.data as { markers?: Array<{ name: string }> } | undefined)?.markers ?? [];
+  check(
+    'Le cadre visible isole les lieux concernés',
+    inBounds.status === 200 &&
+      boundedMarkers.length === 1 &&
+      (boundedMarkers[0]?.name ?? '').includes('Chinguetti'),
+    boundedMarkers.map((marker) => marker.name),
+  );
+
+  const filtered = await call('/api/map?types=HOTEL,EXCURSION');
+  const filteredCounts =
+    (filtered.body.data as { countsByType?: Record<string, number> } | undefined)?.countsByType ??
+    {};
+  check(
+    'Le filtre par type exclut les autres',
+    !('RESTAURANT' in filteredCounts) && !('ATTRACTION' in filteredCounts),
+    filteredCounts,
+  );
+
+  const partialBounds = await call('/api/map?swLat=20.3&swLng=-12.5');
+  check('Un cadre incomplet → 422', partialBounds.status === 422, partialBounds.status);
+
+  const invertedBounds = await call('/api/map?swLat=21&swLng=-12.5&neLat=20.3&neLng=-12.2');
+  check('Un cadre inversé → 422', invertedBounds.status === 422, invertedBounds.status);
+
+  const lonelyLatitude = await call('/api/map?latitude=18.07');
+  check('Latitude sans longitude → 422', lonelyLatitude.status === 422, lonelyLatitude.status);
+
   /* --- Réservations --------------------------------------------------------- */
   console.log('\nRéservations');
 

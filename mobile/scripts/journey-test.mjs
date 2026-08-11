@@ -103,6 +103,66 @@ async function run() {
     );
   }
 
+  /* --- Onglet Carte ---------------------------------------------------------- */
+  console.log('\nCarte');
+
+  // Cadre approximatif de la vue initiale : Nouakchott, delta de 0,25 degre.
+  const region = { latitude: 18.0735, longitude: -15.9582, delta: 0.25 };
+  const viewport = await call(
+    `/api/map?swLat=${region.latitude - region.delta / 2}&swLng=${region.longitude - region.delta / 2}` +
+      `&neLat=${region.latitude + region.delta / 2}&neLng=${region.longitude + region.delta / 2}&limit=100`,
+  );
+  const viewportMarkers = viewport.body.data?.markers ?? [];
+
+  check('Le cadre visible renvoie des marqueurs', viewport.status === 200, viewport.body);
+  check(
+    'Les marqueurs sont bien dans le cadre demande',
+    viewportMarkers.every(
+      (marker) =>
+        marker.latitude >= region.latitude - region.delta / 2 &&
+        marker.latitude <= region.latitude + region.delta / 2 &&
+        marker.longitude >= region.longitude - region.delta / 2 &&
+        marker.longitude <= region.longitude + region.delta / 2,
+    ),
+    viewportMarkers.map((marker) => [marker.latitude, marker.longitude]),
+  );
+  check(
+    'Chaque marqueur porte le type attendu par les filtres',
+    viewportMarkers.every((marker) =>
+      ['HOTEL', 'RESTAURANT', 'ATTRACTION', 'EXCURSION'].includes(marker.type),
+    ),
+  );
+
+  // L'ecran decoche un type : la requete ne demande plus que les autres.
+  const withoutRestaurants = await call('/api/map?types=HOTEL,ATTRACTION,EXCURSION&limit=100');
+  check(
+    'Decocher un filtre retire ce type des resultats',
+    (withoutRestaurants.body.data?.markers ?? []).every((marker) => marker.type !== 'RESTAURANT'),
+    withoutRestaurants.body.data?.countsByType,
+  );
+
+  // Bouton « centrer sur ma position ».
+  const around = await call('/api/map?latitude=18.0735&longitude=-15.9582&radiusMeters=10000');
+  check(
+    'Le mode autour de moi trie par distance',
+    (around.body.data?.markers ?? []).every(
+      (marker, index, list) =>
+        index === 0 || marker.distanceMeters >= list[index - 1].distanceMeters,
+    ),
+    (around.body.data?.markers ?? []).map((marker) => marker.distanceMeters),
+  );
+
+  // Ouverture d'une fiche depuis un marqueur.
+  const hotelMarker = viewportMarkers.find((marker) => marker.type === 'HOTEL');
+  if (hotelMarker) {
+    const fromMarker = await call(`/api/hotels/${hotelMarker.id}`);
+    check(
+      'Un marqueur ouvre bien la fiche correspondante',
+      fromMarker.status === 200 && fromMarker.body.data?.id === hotelMarker.id,
+      fromMarker.status,
+    );
+  }
+
   /* --- Recherche depuis l'onglet Explorer ---------------------------------- */
   console.log('\nExplorer');
 
