@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { PlaceType } from '@tourism/shared/constants';
 import type { Restaurant } from '@tourism/shared/types';
 
+import { ImageManager } from '@/components/forms/image-manager';
 import { PageHeader } from '@/components/ui/primitives';
 import { api, ApiRequestError } from '@/lib/api/client';
 import { loadCategoryOptions } from '@/lib/api/resources';
@@ -31,6 +32,14 @@ export default async function EditRestaurantPage({ params }: { params: Promise<{
     <>
       <PageHeader title="Modifier le restaurant" description={restaurant.name} />
       <RestaurantForm restaurant={restaurant} categories={categories} />
+
+      <div className="mt-8 border-t border-slate-200 pt-6">
+        <ImageManager
+          resource="restaurants"
+          entityId={restaurant.id}
+          images={restaurant.images ?? []}
+        />
+      </div>
     </>
   );
 }

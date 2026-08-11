@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 
 import type { Hotel } from '@tourism/shared/types';
 
+import { ImageManager } from '@/components/forms/image-manager';
 import { PageHeader } from '@/components/ui/primitives';
 import { api, ApiRequestError } from '@/lib/api/client';
 
@@ -27,6 +28,10 @@ export default async function EditHotelPage({ params }: { params: Promise<{ id: 
     <>
       <PageHeader title="Modifier l’hôtel" description={hotel.name} />
       <HotelForm hotel={hotel} />
+
+      <div className="mt-8 border-t border-slate-200 pt-6">
+        <ImageManager resource="hotels" entityId={hotel.id} images={hotel.images ?? []} />
+      </div>
     </>
   );
 }

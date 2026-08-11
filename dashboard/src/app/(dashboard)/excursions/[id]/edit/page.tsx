@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 
 import type { Excursion } from '@tourism/shared/types';
 
+import { ImageManager } from '@/components/forms/image-manager';
 import { PageHeader } from '@/components/ui/primitives';
 import { api, ApiRequestError } from '@/lib/api/client';
 
@@ -27,6 +28,14 @@ export default async function EditExcursionPage({ params }: { params: Promise<{ 
     <>
       <PageHeader title="Modifier l’excursion" description={excursion.title} />
       <ExcursionForm excursion={excursion} />
+
+      <div className="mt-8 border-t border-slate-200 pt-6">
+        <ImageManager
+          resource="excursions"
+          entityId={excursion.id}
+          images={excursion.images ?? []}
+        />
+      </div>
     </>
   );
 }

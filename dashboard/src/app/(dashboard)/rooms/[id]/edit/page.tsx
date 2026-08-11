@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 
 import type { Room } from '@tourism/shared/types';
 
+import { ImageManager } from '@/components/forms/image-manager';
 import { PageHeader } from '@/components/ui/primitives';
 import { api, ApiRequestError } from '@/lib/api/client';
 import { loadHotelOptions } from '@/lib/api/resources';
@@ -30,6 +31,10 @@ export default async function EditRoomPage({ params }: { params: Promise<{ id: s
     <>
       <PageHeader title="Modifier la chambre" description={room.name} />
       <RoomForm room={room} hotels={hotels} />
+
+      <div className="mt-8 border-t border-slate-200 pt-6">
+        <ImageManager resource="rooms" entityId={room.id} images={room.images ?? []} />
+      </div>
     </>
   );
 }
