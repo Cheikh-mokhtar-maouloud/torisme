@@ -31,6 +31,26 @@ const userSchema = new Schema(
     },
     isActive: { type: Boolean, default: true, index: true },
     emailVerifiedAt: { type: Date },
+
+    /**
+     * Réinitialisation de mot de passe.
+     *
+     * Le jeton est stocké **haché** : une fuite de la base ne permettrait pas de
+     * prendre la main sur les comptes en attente de réinitialisation. Il est à
+     * usage unique et de courte durée.
+     */
+    passwordResetTokenHash: { type: String, select: false },
+    passwordResetExpiresAt: { type: Date, select: false },
+
+    /**
+     * Verrouillage après échecs répétés.
+     *
+     * Le compteur ralentit une attaque par force brute ciblée, que la limitation
+     * de débit par IP (Phase 14) ne couvre pas : un attaquant distribué change
+     * d'adresse mais vise toujours le même compte.
+     */
+    failedLoginAttempts: { type: Number, default: 0, select: false },
+    lockedUntil: { type: Date, select: false },
   },
   {
     ...baseSchemaOptions,
