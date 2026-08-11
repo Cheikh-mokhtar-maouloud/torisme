@@ -133,6 +133,19 @@ au dashboard.
 | POST    | `/api/bookings`               | user                      |
 | GET     | `/api/bookings/:id`           | propriétaire ou admin     |
 | PATCH   | `/api/bookings/:id/cancel`    | propriétaire ou admin     |
+| GET     | `/api/rooms/:id/availability` | public                    |
+
+`GET /api/rooms/:id/availability?checkIn=…&checkOut=…` renvoie les unités
+restantes **et le prix total**. Le montant est calculé par le serveur et n'est
+jamais recomposé par un client : un prix envoyé depuis l'application serait
+modifiable.
+
+Une réservation inexistante ou appartenant à un tiers renvoie **404**, pas 403 :
+répondre « interdit » confirmerait son existence et permettrait de les énumérer.
+
+> Limite connue, levée en Phase 8 : entre la vérification de disponibilité et
+> l'insertion, deux requêtes simultanées peuvent réserver la même dernière unité.
+> La correction demande une transaction multi-documents, donc un replica set.
 
 ### Interactions
 

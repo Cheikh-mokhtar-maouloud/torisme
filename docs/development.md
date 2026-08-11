@@ -94,6 +94,27 @@ ces corps à l'API pour s'assurer que formulaires et schémas Zod ne divergent p
 > machine. Renseigner l'IP locale du poste de développement dans
 > `mobile/.env.local` (`EXPO_PUBLIC_API_URL=http://192.168.x.x:4000`).
 
+### Tests du mobile
+
+L'application ne peut pas être pilotée sans émulateur en intégration continue.
+Le parcours est donc rejoué au niveau de l'API, avec exactement les mêmes appels
+et les mêmes corps que les écrans :
+
+```bash
+npm run test:journey --workspace mobile   # 23 vérifications du parcours complet
+```
+
+Il couvre l'accueil, la recherche, la fiche hôtel, la chambre, la disponibilité,
+la connexion, la réservation, l'historique et l'annulation — dont l'ordre
+`[longitude, latitude]` des coordonnées et la concordance entre le total annoncé
+et le total facturé.
+
+Le bundle se vérifie séparément :
+
+```bash
+npx expo export --platform android --output-dir /tmp/export   # depuis mobile/
+```
+
 ### Vérification d'un déploiement
 
 ```bash
@@ -207,14 +228,17 @@ dashboard/
     └── middleware.ts
 
 mobile/
-├── App.tsx           Point d'entrée
+├── App.tsx           Point d'entrée : providers et navigation
+├── scripts/          journey-test.mjs
 └── src/
-    ├── config/       Configuration runtime
-    ├── theme/        Jetons de design
-    ├── navigation/   Navigation             (Phase 5)
-    ├── screens/      Écrans                 (Phase 5)
-    ├── components/   Composants             (Phase 5)
-    └── api/          Client API             (Phase 5)
+    ├── api/          Client HTTP et hooks React Query
+    ├── auth/         Contexte de session, stockage sécurisé du jeton
+    ├── components/   Trousse d'interface et cartes de liste
+    ├── config/       Configuration runtime validée
+    ├── lib/          Formatage, hooks utilitaires
+    ├── navigation/   Types de route et navigateurs
+    ├── screens/      Un fichier par écran
+    └── theme/        Jetons de design
 ```
 
 ## Problèmes courants

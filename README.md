@@ -34,6 +34,7 @@ npm run dev:mobile                 # Expo
 npm run seed  --workspace backend    # données de développement
 npm run smoke --workspace backend    # 40 vérifications API
 npm run smoke --workspace dashboard  # 30 vérifications dashboard
+npm run test:journey --workspace mobile  # parcours mobile de bout en bout
 ```
 
 Détails, prérequis et dépannage : [`docs/development.md`](docs/development.md).
@@ -66,7 +67,8 @@ npm run build          # build de production backend + dashboard
 | 2     | Modèles et endpoints backend         | ✅ terminée |
 | 3     | Dashboard et CRUD                    | ✅ terminée |
 | 4     | Préparation du déploiement           | ✅ terminée |
-| 5–16  | Mobile, carte, photos, réservations, notifications, temps réel, mise à l'échelle | à venir |
+| 5     | Application mobile et réservation    | ✅ terminée |
+| 6–16  | Carte, photos, réservations avancées, notifications, temps réel, mise à l'échelle | à venir |
 
 ## Licence
 
