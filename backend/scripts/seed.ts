@@ -26,6 +26,23 @@ import { Attraction, Category, Excursion, Hotel, Restaurant, Room, User } from '
 
 /* eslint-disable no-console -- script de développement, sortie destinée au terminal */
 
+/**
+ * Images de démonstration.
+ *
+ * Le téléversement réel arrive en Phase 7 ; en attendant, ces URL pointent vers
+ * un service de photos d'exemple. Elles rendent l'application évaluable
+ * visuellement, et le repli « Photo à venir » reste testable sur les fiches
+ * volontairement laissées sans image.
+ */
+const demoImages = (seed: string, count = 3) =>
+  Array.from({ length: count }, (_, index) => ({
+    url: `https://picsum.photos/seed/${seed}-${index}/1200/800`,
+    alt: undefined,
+    width: 1200,
+    height: 800,
+    order: index,
+  }));
+
 async function seed(): Promise<void> {
   if (process.env.APP_ENV === 'production' || process.env.NODE_ENV === 'production') {
     throw new Error('Le seed est interdit en production.');
@@ -86,6 +103,7 @@ async function seed(): Promise<void> {
   const hotels = await Hotel.create([
     {
       name: 'Hôtel Atlantique Nouakchott',
+      images: demoImages('hotel-atlantique', 4),
       description:
         "Hôtel en bord de mer offrant une vue sur l'océan Atlantique, à quinze minutes du centre-ville et de l'aéroport international.",
       address: {
@@ -108,6 +126,7 @@ async function seed(): Promise<void> {
     },
     {
       name: 'Auberge du Banc d’Arguin',
+      images: demoImages('hotel-arguin', 3),
       description:
         "Auberge familiale à proximité du parc national du Banc d'Arguin, point de départ idéal pour l'observation des oiseaux migrateurs.",
       address: { city: 'Nouadhibou', country: 'Mauritanie', countryCode: 'MR' },
@@ -139,6 +158,7 @@ async function seed(): Promise<void> {
     {
       hotelId: atlantique._id,
       name: 'Chambre Double Vue Mer',
+      images: demoImages('room-vuemer', 3),
       description: "Chambre de 28 m² avec balcon donnant sur l'océan, lit double et bureau.",
       capacity: 2,
       bedCount: 1,
@@ -151,6 +171,7 @@ async function seed(): Promise<void> {
     {
       hotelId: atlantique._id,
       name: 'Suite Familiale',
+      images: demoImages('room-suite', 3),
       description: 'Suite de 45 m² avec deux chambres séparées et un salon, adaptée aux familles.',
       capacity: 4,
       bedCount: 3,
@@ -163,6 +184,7 @@ async function seed(): Promise<void> {
     {
       hotelId: auberge._id,
       name: 'Chambre Standard',
+      images: demoImages('room-standard', 2),
       description: 'Chambre simple et fonctionnelle avec salle d’eau privative.',
       capacity: 2,
       bedCount: 2,
@@ -189,6 +211,7 @@ async function seed(): Promise<void> {
   await Restaurant.create([
     {
       name: 'Le Petit Poisson',
+      images: demoImages('resto-poisson', 3),
       description:
         'Restaurant de fruits de mer installé face au port de pêche, spécialisé dans le poisson grillé du jour.',
       address: { city: 'Nouakchott', country: 'Mauritanie', countryCode: 'MR' },
@@ -209,6 +232,7 @@ async function seed(): Promise<void> {
     },
     {
       name: 'Chez Mariem',
+      images: demoImages('resto-mariem', 2),
       description:
         'Cuisine mauritanienne traditionnelle servie dans un cadre familial : méchoui, thieboudienne et thé à la menthe.',
       address: { city: 'Nouakchott', country: 'Mauritanie', countryCode: 'MR' },
@@ -226,6 +250,7 @@ async function seed(): Promise<void> {
   await Attraction.create([
     {
       name: "Parc national du Banc d'Arguin",
+      images: demoImages('attr-arguin', 4),
       description:
         "Réserve inscrite au patrimoine mondial de l'UNESCO, l'une des plus importantes zones d'hivernage pour les oiseaux migrateurs d'Europe.",
       address: { city: 'Nouadhibou', country: 'Mauritanie', countryCode: 'MR' },
@@ -239,6 +264,7 @@ async function seed(): Promise<void> {
     },
     {
       name: 'Vieille ville de Chinguetti',
+      images: demoImages('attr-chinguetti', 4),
       description:
         "Septième ville sainte de l'islam, célèbre pour ses bibliothèques manuscrites et son architecture de pierre sèche.",
       address: { city: 'Chinguetti', country: 'Mauritanie', countryCode: 'MR' },
@@ -269,6 +295,7 @@ async function seed(): Promise<void> {
   await Excursion.create([
     {
       title: 'Train du désert : Nouadhibou – Zouérat',
+      images: demoImages('exc-train', 3),
       description:
         "Voyage à bord de l'un des plus longs trains du monde, à travers le désert mauritanien. Départ en fin de journée, nuit à la belle étoile.",
       destination: 'Zouérat',
@@ -290,6 +317,7 @@ async function seed(): Promise<void> {
     },
     {
       title: 'Découverte de l’Adrar',
+      images: demoImages('exc-adrar', 3),
       description:
         'Trois jours entre Atar, Chinguetti et Ouadane : dunes, oasis et bibliothèques anciennes.',
       destination: 'Atar',

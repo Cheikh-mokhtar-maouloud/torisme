@@ -302,6 +302,144 @@ async function run(): Promise<void> {
   const missing = await call('/api/hotels/000000000000000000000000');
   check('Identifiant inexistant → 404', missing.status === 404, missing.body);
 
+  /* --- Réservations --------------------------------------------------------- */
+  console.log('\nRéservations');
+
+  const roomsForBooking = await call('/api/rooms?limit=1');
+  const bookableRoom = roomsForBooking.body.data?.items?.[0] as
+    { id: string; capacity: number; pricePerNight: number } | undefined;
+  check('Une chambre publiée est disponible pour le test', bookableRoom !== undefined);
+
+  if (bookableRoom) {
+    const dayAfter = (days: number) =>
+      new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+
+    const checkIn = dayAfter(10);
+    const checkOut = dayAfter(13);
+
+    const availability = await call(
+      `/api/rooms/${bookableRoom.id}/availability?checkIn=${checkIn}&checkOut=${checkOut}`,
+    );
+    const availabilityData = availability.body.data as
+      { nights: number; totalPrice: number; isAvailable: boolean; unitPrice: number } | undefined;
+
+    check(
+      'La disponibilité est publique et calcule les nuits',
+      availability.status === 200 && availabilityData?.nights === 3,
+      availability.body,
+    );
+    check(
+      'Le prix total est calculé par le serveur',
+      availabilityData?.totalPrice === bookableRoom.pricePerNight * 3,
+      { attendu: bookableRoom.pricePerNight * 3, reçu: availabilityData?.totalPrice },
+    );
+
+    const badRange = await call(
+      `/api/rooms/${bookableRoom.id}/availability?checkIn=${checkOut}&checkOut=${checkIn}`,
+    );
+    check('Une plage de dates inversée → 422', badRange.status === 422, badRange.body);
+
+    const anonymousBooking = await call('/api/bookings', {
+      method: 'POST',
+      body: { roomId: bookableRoom.id, checkIn, checkOut, guests: 2 },
+    });
+    check('Réserver sans jeton → 401', anonymousBooking.status === 401, anonymousBooking.body);
+
+    const pastBooking = await call('/api/bookings', {
+      method: 'POST',
+      body: { roomId: bookableRoom.id, checkIn: dayAfter(-5), checkOut: dayAfter(-2), guests: 1 },
+      token: userToken,
+    });
+    check('Réserver dans le passé → 422', pastBooking.status === 422, pastBooking.body);
+
+    const tooManyGuests = await call('/api/bookings', {
+      method: 'POST',
+      body: { roomId: bookableRoom.id, checkIn, checkOut, guests: bookableRoom.capacity + 5 },
+      token: userToken,
+    });
+    check(
+      'Dépasser la capacité de la chambre → 422',
+      tooManyGuests.status === 422,
+      tooManyGuests.body,
+    );
+
+    const booking = await call('/api/bookings', {
+      method: 'POST',
+      body: { roomId: bookableRoom.id, checkIn, checkOut, guests: 2 },
+      token: userToken,
+    });
+    const bookingData = booking.body.data as
+      | { id: string; reference: string; totalPrice: number; nights: number; status: string }
+      | undefined;
+
+    check('Créer une réservation → 201', booking.status === 201, booking.body);
+    check(
+      'Le prix enregistré est celui calculé par le serveur',
+      bookingData?.totalPrice === bookableRoom.pricePerNight * 3 && bookingData?.nights === 3,
+      bookingData,
+    );
+    check(
+      'La réservation démarre en attente avec une référence',
+      bookingData?.status === 'PENDING' && (bookingData?.reference ?? '').startsWith('TP-'),
+      bookingData,
+    );
+
+    if (bookingData) {
+      const mine = await call('/api/bookings', { token: userToken });
+      check(
+        'La réservation apparaît dans l’historique du client',
+        (mine.body.data?.items ?? []).some(
+          (item) => (item as { id: string }).id === bookingData.id,
+        ),
+        mine.body.data?.meta,
+      );
+
+      // Contrôle de propriété : un autre compte authentifié ne doit pas y accéder.
+      const otherUser = await call('/api/auth/register', {
+        method: 'POST',
+        body: {
+          fullName: 'Curieux',
+          email: `curieux-${Date.now()}@example.com`,
+          password: 'MotDePasse123',
+        },
+      });
+      const otherToken = otherUser.body.data?.token as string | undefined;
+
+      const stolen = await call(`/api/bookings/${bookingData.id}`, { token: otherToken });
+      check(
+        'Un autre utilisateur ne peut pas lire la réservation → 404',
+        stolen.status === 404,
+        stolen.status,
+      );
+
+      const otherList = await call('/api/bookings', { token: otherToken });
+      check(
+        'Un autre utilisateur ne voit pas la réservation dans sa liste',
+        (otherList.body.data?.items ?? []).length === 0,
+        otherList.body.data?.meta,
+      );
+
+      const cancelled = await call(`/api/bookings/${bookingData.id}/cancel`, {
+        method: 'PATCH',
+        body: {},
+        token: userToken,
+      });
+      check(
+        'Annuler sa réservation → 200 avec statut CANCELLED',
+        cancelled.status === 200 &&
+          (cancelled.body.data as { status?: string } | undefined)?.status === 'CANCELLED',
+        cancelled.body,
+      );
+
+      const doubleCancel = await call(`/api/bookings/${bookingData.id}/cancel`, {
+        method: 'PATCH',
+        body: {},
+        token: userToken,
+      });
+      check('Annuler deux fois → 409', doubleCancel.status === 409, doubleCancel.status);
+    }
+  }
+
   /* --- Autorisation des écritures ------------------------------------------ */
   console.log('\nAutorisation des écritures');
   const payload = {
