@@ -48,7 +48,33 @@ Vérification rapide que le backend répond :
 
 ```bash
 curl http://localhost:4000/api/health
+curl "http://localhost:4000/api/health?deep=true"   # vérifie aussi MongoDB
 ```
+
+### Données de développement
+
+```bash
+npm run seed --workspace backend      # remplit la base (idempotent, refusé en production)
+```
+
+Comptes créés par le seed :
+
+| Compte  | Email                   | Mot de passe   |
+| ------- | ----------------------- | -------------- |
+| Admin   | `admin@tourism.mr`      | `Admin123!`    |
+| Touriste| `touriste@example.com`  | `Touriste123!` |
+
+### Test de fumée de l'API
+
+Serveur démarré et base remplie, puis :
+
+```bash
+npm run smoke --workspace backend     # 40 vérifications HTTP de bout en bout
+```
+
+Il couvre l'autorisation par rôle, la visibilité des brouillons, la validation,
+la pagination, la recherche géographique et le rejet des injections d'opérateurs
+MongoDB. À relancer après toute modification du backend.
 
 > **Mobile sur appareil physique** : `localhost` désigne le téléphone, pas votre
 > machine. Renseigner l'IP locale du poste de développement dans
@@ -117,12 +143,14 @@ Un commit = une modification cohérente. Ne pas fabriquer de commits sans conten
 ## Structure des dossiers
 
 ```
-backend/src/
-├── app/api/          Route handlers (HTTP uniquement)
-├── config/           Validation d'environnement
-├── lib/              Utilitaires transverses
-├── models/           Schémas Mongoose        (Phase 2)
-└── services/         Logique métier          (Phase 2)
+backend/
+├── scripts/          seed.ts, smoke-test.ts
+└── src/
+    ├── app/api/      Route handlers (HTTP uniquement)
+    ├── config/       Validation d'environnement
+    ├── lib/          Connexion base, auth, erreurs, requêtes, sérialisation
+    ├── models/       Schémas Mongoose
+    └── services/     Logique métier
 
 dashboard/src/
 ├── app/              App Router

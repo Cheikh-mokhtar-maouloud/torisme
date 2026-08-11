@@ -20,6 +20,10 @@ Document vivant : les mesures sont introduites au fil des phases. La colonne
 | `.env*` exclus de Git (`!.env.example` seul autorisé)          | Phase 1 ✅ |
 | Variables validées au démarrage (`backend/src/config/env.ts`)  | Phase 1 ✅ |
 | `JWT_SECRET` ≥ 32 caractères, aléatoire                         | Phase 1 ✅ |
+| Hachage bcrypt (coût 12), `passwordHash` en `select: false`    | Phase 2 ✅ |
+| Gardes `requireAuth` / `requireAdmin` sur toutes les écritures  | Phase 2 ✅ |
+| Rôle relu en base à chaque requête (pas seulement dans le jeton)| Phase 2 ✅ |
+| Réponse identique quel que soit l'existence du compte (login)  | Phase 2 ✅ |
 | Secrets distincts par environnement (dev / staging / prod)     | Phase 4  |
 | Rotation documentée des clés                                    | Phase 14 |
 

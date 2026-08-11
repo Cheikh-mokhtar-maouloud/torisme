@@ -2,9 +2,10 @@
 
 **MongoDB** (Atlas en hébergé), accédé via **Mongoose**.
 
-> Statut : ce document décrit le modèle **cible**. Les schémas Mongoose sont
-> implémentés en Phase 2. Les types correspondants existent déjà dans
-> `shared/src/types/entities.ts` et font foi pour le contrat d'API.
+> Statut (Phase 2) : `users`, `categories`, `hotels`, `rooms`, `restaurants`,
+> `attractions` et `excursions` sont **implémentés et indexés**
+> (`backend/src/models/`). Les collections de réservation, d'avis, de favoris,
+> de notifications et de paiement décrivent encore le modèle cible.
 
 ## Collections
 
@@ -107,6 +108,31 @@ Un index unique sur `reference` garantit l'idempotence côté client.
 **Règle** : aucune requête ne part en production sans que son plan d'exécution ait été
 vérifié (`.explain('executionStats')`). Un `COLLSCAN` sur une collection qui grandit est
 un incident différé, pas une optimisation à faire plus tard.
+
+## Recherche par proximité : `$geoWithin`, pas `$nearSphere`
+
+Les listes géolocalisées filtrent avec :
+
+```js
+{ location: { $geoWithin: { $centerSphere: [[longitude, latitude], rayonMètres / 6378137] } } }
+```
+
+`$nearSphere` serait plus naturel — il trie par distance croissante — mais MongoDB
+l'interdit dans un pipeline d'agrégation. Or `countDocuments()` en est un : toute
+liste paginée avec filtre géographique échouerait en erreur serveur. Le cas a été
+rencontré et corrigé en Phase 2.
+
+`$centerSphere` attend un rayon en **radians**, d'où la division par le rayon
+terrestre (`GEO.EARTH_RADIUS_METERS`). Le tri par distance relèvera d'un endpoint
+dédié à la carte, construit sur `$geoNear` (Phase 6).
+
+## Transactions
+
+Le calcul de disponibilité et le décrément de stock (Phase 8) exigent des
+transactions multi-documents, elles-mêmes conditionnées à un **replica set**.
+MongoDB Atlas en fournit un, y compris sur l'offre gratuite ; une instance locale
+installée par défaut est en mode *standalone* et ne les supporte pas. À prévoir
+avant la Phase 8 : Atlas, ou une configuration locale en replica set à un nœud.
 
 ## Ce qui ne va pas en base
 

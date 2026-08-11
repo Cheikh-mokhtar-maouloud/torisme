@@ -4,8 +4,9 @@ Base : `http://localhost:4000` en développement.
 La liste des chemins fait foi dans `shared/src/constants/api.ts` — le mobile et le
 dashboard ne doivent jamais écrire une URL d'API en dur.
 
-> Statut : seul `GET /api/health` est implémenté (Phase 1). Le reste décrit le contrat
-> cible, construit à partir de la Phase 2.
+> Statut (Phase 2) : santé, authentification, hôtels, chambres, restaurants,
+> attractions, excursions et catégories sont **implémentés et testés**.
+> Réservations, avis, favoris et notifications décrivent encore le contrat cible.
 
 ## Enveloppe de réponse
 
@@ -65,9 +66,14 @@ Les listes paginées renvoient :
 
 ### Santé
 
-| Méthode | Chemin        | Accès  | Description                    |
-| ------- | ------------- | ------ | ------------------------------ |
-| GET     | `/api/health` | public | Sonde de disponibilité         |
+| Méthode | Chemin                   | Accès  | Description                                  |
+| ------- | ------------------------ | ------ | -------------------------------------------- |
+| GET     | `/api/health`            | public | Sonde de disponibilité (le processus répond)  |
+| GET     | `/api/health?deep=true`  | public | Vérifie aussi MongoDB (`ping`) ; 503 si KO    |
+
+La sonde superficielle est celle que doit interroger un load balancer : une base
+lente ne doit pas faire retirer du pool une instance capable de servir du cache.
+La sonde profonde est destinée à la supervision.
 
 ### Authentification
 
@@ -79,6 +85,12 @@ Les listes paginées renvoient :
 | GET     | `/api/auth/me`                | user   |
 | POST    | `/api/auth/forgot-password`   | public |
 | POST    | `/api/auth/reset-password`    | public |
+
+Le jeton d'accès est renvoyé **à la fois** dans le corps de la réponse (consommé
+par le mobile via `Authorization: Bearer`) et posé en cookie HTTP-only `tourism_session`
+(consommé par le dashboard). Durée de vie : 15 minutes.
+
+`forgot-password` et `reset-password` sont livrés en Phase 8.
 
 ### Contenu
 
