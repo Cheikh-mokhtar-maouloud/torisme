@@ -108,14 +108,34 @@ traitement est idempotent (le même événement peut être livré plusieurs fois
 
 Aucune donnée de carte ne transite ni n'est stockée par la plateforme.
 
-## Téléversement de fichiers (Phase 7)
+## Téléversement de fichiers (Phase 7 ✅)
 
-- Types autorisés : `image/jpeg`, `image/png`, `image/webp` — vérifiés côté serveur
-  d'après le contenu, pas d'après l'extension ni le `Content-Type` déclaré.
-- Taille maximale : 5 Mo.
-- Téléversement direct vers le fournisseur via signature à durée limitée, afin que les
-  fichiers ne transitent pas par l'API.
-- Le nom de fichier fourni par le client n'est jamais réutilisé tel quel.
+- **Réservé aux administrateurs** — `POST /api/uploads` exige le rôle `ADMIN`.
+- Types autorisés : `image/jpeg`, `image/png`, `image/webp`, déterminés d'après la
+  **signature binaire du fichier**, jamais d'après l'extension ni le `Content-Type`
+  déclaré, l'un comme l'autre étant choisis librement par l'appelant.
+- Taille maximale : **4 Mo**.
+- Le nom fourni par le client n'est jamais réutilisé : le fichier est renommé avec
+  un identifiant aléatoire, ce qui écarte la traversée de répertoire et les
+  collisions.
+- Le dossier de destination provient d'une **liste blanche**, jamais d'une valeur
+  libre.
+- La route de service local rejette tout chemin sortant de la racine de stockage,
+  et ne sert que les types connus.
+
+### Pourquoi le fichier transite par l'API
+
+Le plan initial (Phase 1) prévoyait un téléversement **direct** vers le fournisseur
+via signature. Cette décision a été révisée en Phase 7, pour une raison de fond :
+
+> **Le serveur ne peut pas valider ce qu'il ne voit pas.** En téléversement direct,
+> le client envoie ce qu'il veut au fournisseur puis déclare une URL et un type. Un
+> fichier arbitraire renommé `.jpg` passerait sans contrôle.
+
+Contrepartie assumée : le corps de requête est plafonné par l'hébergeur — 4,5 Mo sur
+Vercel — d'où la limite applicative de 4 Mo. Si des images plus lourdes deviennent
+nécessaires, le téléversement signé redevient la voie à suivre, et il faudra alors
+vérifier l'asset auprès du fournisseur après coup pour retrouver la garantie perdue.
 
 ## Journalisation
 

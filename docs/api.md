@@ -93,6 +93,24 @@ par le mobile via `Authorization: Bearer`) et posé en cookie HTTP-only `tourism
 
 `forgot-password` et `reset-password` sont livrés en Phase 8.
 
+### Images
+
+| Méthode | Chemin                        | Accès  |
+| ------- | ----------------------------- | ------ |
+| POST    | `/api/uploads`                | admin  |
+| DELETE  | `/api/uploads/<providerId>`   | admin  |
+| GET     | `/api/files/<chemin>`         | public (stockage local uniquement) |
+
+`POST /api/uploads` attend un `multipart/form-data` avec `file` et `folder`
+(`hotels`, `rooms`, `restaurants`, `attractions`, `excursions`, `reviews`). Il
+renvoie une référence `{ url, providerId, width, height, order }` à ajouter au
+tableau `images` de la fiche via son `PUT`.
+
+Le type est déterminé d'après les **octets du fichier**. Un texte annoncé
+`image/jpeg` est refusé en 422, et un JPEG nommé `.png` est correctement identifié.
+
+La suppression est **idempotente** : supprimer un fichier absent renvoie 200.
+
 ### Carte
 
 | Méthode | Chemin     | Accès  |
