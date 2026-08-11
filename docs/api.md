@@ -87,11 +87,35 @@ La sonde profonde est destinée à la supervision.
 | POST    | `/api/auth/forgot-password`   | public |
 | POST    | `/api/auth/reset-password`    | public |
 
-Le jeton d'accès est renvoyé **à la fois** dans le corps de la réponse (consommé
-par le mobile via `Authorization: Bearer`) et posé en cookie HTTP-only `tourism_session`
-(consommé par le dashboard). Durée de vie : 15 minutes.
+| POST    | `/api/auth/refresh`           | public (jeton de rafraîchissement) |
+| POST    | `/api/auth/change-password`   | user   |
+| PATCH   | `/api/auth/profile`           | user   |
 
-`forgot-password` et `reset-password` sont livrés en Phase 8.
+**Deux jetons.** Le jeton d'accès dure 15 minutes et n'est pas révocable — c'est
+le prix de sa vérification purement cryptographique, sans aller-retour en base.
+Le jeton de rafraîchissement dure 30 jours, est stocké haché et **révocable
+immédiatement**.
+
+`/api/auth/refresh` applique une **rotation systématique** : le jeton présenté est
+consommé, un nouveau est émis. Représenter un jeton déjà consommé signale un vol —
+la victime et l'attaquant détiennent la même valeur — et **toutes** les sessions
+du compte sont alors révoquées.
+
+Les sessions tombent également lors d'un changement de mot de passe et d'une
+réinitialisation : sans cela, le changement ne protégerait pas d'un appareil
+compromis.
+
+**Verrouillage** : cinq échecs de connexion bloquent le compte 15 minutes, y
+compris avec le bon mot de passe. Cela couvre l'attaque ciblée distribuée, que la
+limitation par IP (Phase 14) laisse passer.
+
+`forgot-password` renvoie toujours la même réponse, que l'email existe ou non, et
+n'expose jamais le jeton. L'envoi par email arrive en Phase 11 ; en développement,
+le jeton est journalisé.
+
+`PATCH /api/auth/profile` accepte `fullName`, `phone` et `avatarUrl`. Ni l'email
+ni le rôle : changer l'email suppose de vérifier la nouvelle adresse, et le rôle
+ne se modifie que depuis l'administration.
 
 ### Images
 
@@ -178,6 +202,7 @@ au dashboard.
 | POST    | `/api/bookings`               | user                      |
 | GET     | `/api/bookings/:id`           | propriétaire ou admin     |
 | PATCH   | `/api/bookings/:id/cancel`    | propriétaire ou admin     |
+| PATCH   | `/api/bookings/:id/confirm`   | admin                     |
 | GET     | `/api/rooms/:id/availability` | public                    |
 
 `GET /api/rooms/:id/availability?checkIn=…&checkOut=…` renvoie les unités
@@ -188,9 +213,14 @@ modifiable.
 Une réservation inexistante ou appartenant à un tiers renvoie **404**, pas 403 :
 répondre « interdit » confirmerait son existence et permettrait de les énumérer.
 
-> Limite connue, levée en Phase 8 : entre la vérification de disponibilité et
-> l'insertion, deux requêtes simultanées peuvent réserver la même dernière unité.
-> La correction demande une transaction multi-documents, donc un replica set.
+**Concurrence (résolu en Phase 8).** Le comptage des chevauchements et
+l'insertion se déroulent sous un **verrou par chambre**, posé via un index unique
+et libéré par TTL en cas de panne du processus. Mesuré : sans verrou, 12
+réservations simultanées sur une chambre à une seule unité aboutissaient **toutes
+les 12** ; avec, exactement une aboutit et les onze autres reçoivent 409.
+
+Le verrou a été préféré à une transaction parce qu'il ne requiert pas de replica
+set : le comportement est donc identique sur une instance locale et sur Atlas.
 
 ### Interactions
 

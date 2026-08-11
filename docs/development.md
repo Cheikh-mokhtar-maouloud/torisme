@@ -69,8 +69,15 @@ Comptes créés par le seed :
 Serveur démarré et base remplie, puis :
 
 ```bash
-npm run smoke --workspace backend     # 40 vérifications HTTP de bout en bout
+npm run smoke            --workspace backend   # contrat HTTP complet
+npm run test:auth        --workspace backend   # sessions, rotation, verrouillage
+npm run test:concurrency --workspace backend   # réservations simultanées
+npm run test:uploads     --workspace backend   # téléversement et validation
 ```
+
+`test:concurrency` est celui qui compte le plus : il lance douze réservations
+simultanées sur une chambre à une seule unité et vérifie qu'exactement une
+aboutit. Sans le verrou de `lib/room-lock.ts`, les douze passent.
 
 Il couvre l'autorisation par rôle, la visibilité des brouillons, la validation,
 la pagination, la recherche géographique et le rejet des injections d'opérateurs

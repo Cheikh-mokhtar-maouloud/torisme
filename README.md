@@ -70,7 +70,8 @@ npm run build          # build de production backend + dashboard
 | 5     | Application mobile et réservation    | ✅ terminée |
 | 6     | Carte interactive                    | ✅ terminée |
 | 7     | Photos et galeries                   | ✅ terminée |
-| 8–16  | Réservations avancées, notifications, temps réel, mise à l'échelle | à venir |
+| 8     | Authentification et réservations     | ✅ terminée |
+| 9–16  | Excursions, avis, notifications, temps réel, mise à l'échelle | à venir |
 
 
 ## Licence

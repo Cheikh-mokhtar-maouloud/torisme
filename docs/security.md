@@ -52,8 +52,19 @@ elle est restreinte par domaine (web) ou par bundle id / package name (mobile).
 | Mobile    | Jeton en stockage sécurisé (`expo-secure-store`)           |
 
 Le mobile ne peut pas utiliser de cookie HTTP-only de manière fiable ; la distinction
-est assumée. Dans les deux cas le jeton d'accès est de courte durée (15 min) et
-renouvelé par un jeton de rafraîchissement révocable.
+est assumée. Dans les deux cas le jeton d'accès dure 15 minutes et se renouvelle
+via un jeton de rafraîchissement de 30 jours, stocké **haché** et révocable.
+
+La rotation est systématique et un jeton rejoué déclenche la révocation de toutes
+les sessions du compte : c'est la seule réaction sûre, puisqu'on ne peut pas
+distinguer la victime de l'attaquant.
+
+| Événement | Effet |
+| --- | --- |
+| Déconnexion | Révoque le jeton présenté |
+| Changement de mot de passe | Révoque **toutes** les sessions |
+| Réinitialisation | Révoque **toutes** les sessions |
+| Jeton de rafraîchissement rejoué | Révoque **toutes** les sessions |
 
 ## Validation des entrées
 
@@ -149,7 +160,7 @@ Les stack traces ne sont incluses qu'en dehors de la production
 
 - [ ] HTTPS forcé, HSTS activé
 - [ ] Limitation de débit adossée à Redis
-- [ ] Verrouillage temporaire de compte après échecs répétés
+- [x] Verrouillage temporaire de compte après échecs répétés — Phase 8 ✅
 - [ ] Pare-feu : n'exposer que 80/443
 - [ ] Accès MongoDB Atlas restreint par liste d'IP
 - [ ] Sauvegardes automatiques et **restauration testée**
