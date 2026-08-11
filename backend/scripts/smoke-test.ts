@@ -63,6 +63,13 @@ async function call(
   return { status: response.status, body };
 }
 
+/** Récupère uniquement les en-têtes d'une réponse, sans lire le corps. */
+async function rawHeaders(path: string, extra: Record<string, string> = {}): Promise<Headers> {
+  const response = await fetch(`${BASE_URL}${path}`, { headers: extra });
+  await response.text();
+  return response.headers;
+}
+
 async function run(): Promise<void> {
   console.log(`\nCible : ${BASE_URL}\n`);
 
@@ -79,6 +86,42 @@ async function run(): Promise<void> {
         'connected',
     deepHealth.body,
   );
+
+  /* --- En-têtes de sécurité et CORS ---------------------------------------- */
+  console.log('\nEn-têtes de sécurité et CORS');
+
+  const headers = await rawHeaders('/api/health');
+  check('X-Content-Type-Options: nosniff', headers.get('x-content-type-options') === 'nosniff');
+  check('X-Frame-Options: DENY', headers.get('x-frame-options') === 'DENY');
+  check(
+    'Content-Security-Policy verrouillée',
+    (headers.get('content-security-policy') ?? '').includes("default-src 'none'"),
+    headers.get('content-security-policy'),
+  );
+
+  const allowedOrigin = await rawHeaders('/api/health', { Origin: 'http://localhost:3000' });
+  check(
+    'Une origine autorisée reçoit Access-Control-Allow-Origin',
+    allowedOrigin.get('access-control-allow-origin') === 'http://localhost:3000',
+    allowedOrigin.get('access-control-allow-origin'),
+  );
+  check(
+    'Vary: Origin est présent (sécurité des caches)',
+    (allowedOrigin.get('vary') ?? '').toLowerCase().includes('origin'),
+  );
+
+  const deniedOrigin = await rawHeaders('/api/health', { Origin: 'https://evil.example' });
+  check(
+    'Une origine inconnue ne reçoit aucun en-tête CORS',
+    deniedOrigin.get('access-control-allow-origin') === null,
+    deniedOrigin.get('access-control-allow-origin'),
+  );
+
+  const preflight = await fetch(`${BASE_URL}/api/hotels`, {
+    method: 'OPTIONS',
+    headers: { Origin: 'https://evil.example', 'Access-Control-Request-Method': 'POST' },
+  });
+  check('Préflight d’une origine inconnue → 403', preflight.status === 403, preflight.status);
 
   /* --- Authentification ---------------------------------------------------- */
   console.log('\nAuthentification');
