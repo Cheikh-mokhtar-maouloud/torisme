@@ -31,6 +31,20 @@ const config: ExpoConfig = {
       monochromeImage: './assets/android-icon-monochrome.png',
       backgroundColor: '#0f766e',
     },
+    /*
+     * Clé Google Maps, requise **uniquement pour les compilations natives
+     * Android**. Dans Expo Go, la carte s'affiche sans clé.
+     *
+     * La clé doit être restreinte au nom de paquet et à la signature de
+     * l'application dans la console Google Cloud : intégrée au bundle, elle est
+     * extractible de tout APK. Sans restriction, elle serait réutilisable par
+     * n'importe qui et facturée sur votre compte.
+     *
+     * iOS utilise Apple Maps par défaut et ne demande aucune clé.
+     */
+    config: process.env.EXPO_PUBLIC_MAPS_API_KEY
+      ? { googleMaps: { apiKey: process.env.EXPO_PUBLIC_MAPS_API_KEY } }
+      : undefined,
   },
   web: {
     favicon: './assets/favicon.png',
@@ -38,7 +52,20 @@ const config: ExpoConfig = {
   // Ces modules embarquent du code natif : le plugin l'ajoute au projet lors du
   // `prebuild` ou du build EAS. Sans cette déclaration, ils fonctionnent dans
   // Expo Go mais échouent dans une compilation native.
-  plugins: ['expo-secure-store', 'expo-image'],
+  plugins: [
+    'expo-secure-store',
+    'expo-image',
+    [
+      'expo-location',
+      {
+        // Texte affiché par le système lors de la demande d'autorisation.
+        // Une formulation vague fait refuser l'accès et fait rejeter la fiche
+        // sur l'App Store.
+        locationAlwaysAndWhenInUsePermission:
+          'Votre position permet d’afficher les hôtels, restaurants et sites touristiques proches de vous sur la carte.',
+      },
+    ],
+  ],
   extra: {
     apiUrl: process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000',
     appEnv: process.env.EXPO_PUBLIC_APP_ENV ?? 'development',
