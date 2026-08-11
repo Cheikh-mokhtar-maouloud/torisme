@@ -36,6 +36,18 @@ const envSchema = z.object({
     ),
 
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+
+  /* --- Stockage des images ------------------------------------------------ */
+  STORAGE_PROVIDER: z.enum(['local', 'cloudinary']).default('local'),
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
+  /**
+   * Racine publique de l'API, utilisée pour construire les URL du stockage
+   * local. Sans elle, les images pointeraient vers un chemin relatif que
+   * l'application mobile — sur un autre hôte — ne saurait pas résoudre.
+   */
+  PUBLIC_BASE_URL: z.string().url().default('http://localhost:4000'),
 });
 
 export type Env = z.infer<typeof envSchema>;

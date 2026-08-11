@@ -48,7 +48,15 @@ export const BOOKING = {
 } as const;
 
 export const UPLOAD = {
-  MAX_IMAGE_SIZE_BYTES: 5 * 1024 * 1024,
+  /**
+   * 4 Mo : le fichier transite par l'API, et Vercel plafonne le corps d'une
+   * requête serverless à 4,5 Mo. Au-delà, il faudrait passer à un téléversement
+   * signé directement vers le fournisseur — au prix de la validation des octets
+   * réels côté serveur, que ce plafond permet de conserver.
+   */
+  MAX_IMAGE_SIZE_BYTES: 4 * 1024 * 1024,
   ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/webp'] as const,
   MAX_IMAGES_PER_ENTITY: 30,
-};
+} as const;
+
+export type AllowedImageType = (typeof UPLOAD.ALLOWED_IMAGE_TYPES)[number];

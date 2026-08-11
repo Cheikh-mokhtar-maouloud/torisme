@@ -48,6 +48,10 @@ Thumbs.db
 # Vercel
 .vercel
 
+# Fichiers téléversés en développement (stockage local)
+backend/.uploads/*
+!backend/.uploads/.gitignore
+
 # Caches
 .turbo/
 .eslintcache
