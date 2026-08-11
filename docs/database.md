@@ -76,13 +76,29 @@ l'API d'administration, uniquement recalculés par le service qui possède la so
 
 ### Intégrité des réservations
 
-MongoDB n'a pas de contrainte d'unicité conditionnelle par plage de dates. La protection
-contre les doubles réservations repose donc sur deux mécanismes combinés (Phase 8) :
+Les deux types de réservation posent des problèmes de concurrence **différents**,
+et reçoivent donc des réponses différentes.
 
-1. **Décrément atomique** du stock via `findOneAndUpdate` avec condition
-   (`{ availableSeats: { $gte: n } }`) — une opération, pas un lire-puis-écrire.
-2. **Transaction multi-documents** pour les écritures liées (réservation + stock + paiement).
-   Les transactions exigent un replica set : Atlas en fournit un même sur l'offre gratuite.
+**Excursions — la contrainte tient dans un document.** `availableSeats` est un
+compteur unique : `findOneAndUpdate` conditionné à `$gte` est atomique par
+construction, MongoDB ne modifiant un document que par une opération à la fois.
+Aucun verrou. La condition inclut aussi le statut et la date, dans la même
+opération.
+
+**Hébergement — la contrainte porte sur une plage de dates.** Il faut compter les
+réservations qui chevauchent la période, puis insérer : deux opérations, donc une
+fenêtre. MongoDB n'offre pas d'unicité conditionnelle par intervalle.
+
+La réponse est un **verrou par chambre** (`collection bookingLocks`), reposant sur
+l'atomicité d'une insertion en index unique — disponible y compris sur une
+instance autonome. Un index TTL le libère si le processus meurt.
+
+> Mesuré avant correction : 12 réservations simultanées sur une chambre à une
+> seule unité aboutissaient **toutes les 12**.
+
+Le verrou a été préféré à une transaction précisément parce qu'il ne requiert pas
+de replica set : le comportement reste identique en développement et en
+production, là où une divergence serait la plus coûteuse.
 
 Un index unique sur `reference` garantit l'idempotence côté client.
 

@@ -222,6 +222,36 @@ les 12** ; avec, exactement une aboutit et les onze autres reçoivent 409.
 Le verrou a été préféré à une transaction parce qu'il ne requiert pas de replica
 set : le comportement est donc identique sur une instance locale et sur Atlas.
 
+### Réservations d'excursion
+
+| Méthode | Chemin                                  | Accès                 |
+| ------- | --------------------------------------- | --------------------- |
+| GET     | `/api/excursion-bookings`               | user / admin (toutes) |
+| POST    | `/api/excursion-bookings`               | user                  |
+| GET     | `/api/excursion-bookings/:id`           | propriétaire ou admin |
+| PATCH   | `/api/excursion-bookings/:id/cancel`    | propriétaire ou admin |
+| PATCH   | `/api/excursion-bookings/:id/confirm`   | admin                 |
+
+Collection distincte des réservations d'hébergement : les deux n'ont ni les
+mêmes champs ni les mêmes règles, et les fusionner aurait imposé des colonnes
+vides des deux côtés.
+
+**Concurrence.** Contrairement à l'hébergement, la contrainte tient dans un seul
+document (`availableSeats`) : un `findOneAndUpdate` conditionné à `$gte` suffit,
+MongoDB garantissant qu'un document n'est modifié que par une opération à la
+fois. Aucun verrou n'est donc nécessaire ici. Mesuré : 15 demandes simultanées
+sur 5 places disponibles → exactement 5 acceptées, 10 en `EXCURSION_FULL`.
+
+La condition porte aussi sur le statut et la date, dans la même opération :
+les vérifier séparément rouvrirait la fenêtre que l'atomicité vient de fermer.
+
+Une excursion sans place restante passe automatiquement en `FULL`, et revient à
+`SCHEDULED` dès qu'une annulation en libère. Les places sont restituées à
+l'annulation, sans jamais dépasser `totalSeats`.
+
+Plafond de 10 places par réservation : sans borne, une seule demande pourrait
+vider une sortie et bloquer tous les autres clients.
+
 ### Interactions
 
 | Méthode | Chemin                           | Accès                 |

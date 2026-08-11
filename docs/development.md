@@ -73,6 +73,7 @@ npm run smoke            --workspace backend   # contrat HTTP complet
 npm run test:auth        --workspace backend   # sessions, rotation, verrouillage
 npm run test:concurrency --workspace backend   # réservations simultanées
 npm run test:uploads     --workspace backend   # téléversement et validation
+npm run test:excursions  --workspace backend   # places, concurrence, restitution
 ```
 
 `test:concurrency` est celui qui compte le plus : il lance douze réservations

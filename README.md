@@ -71,7 +71,8 @@ npm run build          # build de production backend + dashboard
 | 6     | Carte interactive                    | ✅ terminée |
 | 7     | Photos et galeries                   | ✅ terminée |
 | 8     | Authentification et réservations     | ✅ terminée |
-| 9–16  | Excursions, avis, notifications, temps réel, mise à l'échelle | à venir |
+| 9     | Réservation d'excursions             | ✅ terminée |
+| 10–16 | Avis, favoris, notifications, temps réel, mise à l'échelle | à venir |
 
 
 ## Licence
