@@ -5,6 +5,7 @@ export * from './booking';
 export * from './category';
 export * from './user';
 export * from './hotel';
+export * from './map';
 export * from './room';
 export * from './restaurant';
 export * from './attraction';
