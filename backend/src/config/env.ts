@@ -12,6 +12,12 @@ const envSchema = z.object({
 
   MONGODB_URI: z.string().min(1, 'MONGODB_URI est requis'),
   MONGODB_DB_NAME: z.string().min(1).default('tourism'),
+  /**
+   * Connexions maximales par instance. La valeur par défaut vise le serverless,
+   * où de nombreuses instances coexistent ; un serveur unique (Phase 15) doit
+   * la relever nettement.
+   */
+  MONGODB_MAX_POOL_SIZE: z.coerce.number().int().min(1).max(100).default(5),
 
   /** Secret de signature des jetons. 32 caractères minimum. */
   JWT_SECRET: z.string().min(32, 'JWT_SECRET doit faire au moins 32 caractères'),

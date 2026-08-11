@@ -42,8 +42,21 @@ export async function connectToDatabase(): Promise<typeof mongoose> {
         dbName: config.MONGODB_DB_NAME,
         // Échouer vite plutôt que laisser une requête pendre 30 s par défaut.
         serverSelectionTimeoutMS: 10_000,
-        maxPoolSize: 10,
-        minPoolSize: 1,
+        /*
+         * Taille du pool.
+         *
+         * En serverless (Vercel), chaque instance de fonction ouvre son propre
+         * pool : dix connexions par instance multipliées par le nombre
+         * d'instances actives saturent rapidement le quota d'un cluster Atlas
+         * (500 connexions sur l'offre M0). Un petit pool par instance est donc
+         * le bon réglage — c'est le nombre d'instances qui absorbe la charge,
+         * pas la taille du pool.
+         *
+         * Sur un serveur long-vivant (Phase 15), l'inverse est vrai : un seul
+         * processus sert tout le trafic et a besoin d'un pool plus large.
+         */
+        maxPoolSize: config.MONGODB_MAX_POOL_SIZE,
+        minPoolSize: 0,
       })
       .then((connection) => {
         logger.info('Connexion MongoDB établie', { database: config.MONGODB_DB_NAME });
