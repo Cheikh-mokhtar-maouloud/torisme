@@ -10,6 +10,7 @@ import { api, ApiRequestError } from '@/lib/api/client';
 import { formatDateTime, formatDuration, formatMoney } from '@/lib/format';
 
 import { deleteExcursionAction } from '../actions';
+import { ExcursionParticipants } from './participants';
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -95,6 +96,8 @@ export default async function ExcursionDetailPage({ params }: PageProps) {
           />
         </Card>
       </div>
+
+      <ExcursionParticipants excursionId={id} />
 
       <section className="mt-8 border-t border-slate-200 pt-5">
         <h2 className="text-sm font-semibold text-slate-900">Zone sensible</h2>
