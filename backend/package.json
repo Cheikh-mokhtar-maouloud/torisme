@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "seed": "tsx scripts/seed.ts",
     "smoke": "tsx scripts/smoke-test.ts",
-    "create-admin": "tsx scripts/create-admin.ts"
+    "create-admin": "tsx scripts/create-admin.ts",
+    "test:uploads": "node scripts/upload-test.mjs"
   },
   "dependencies": {
     "@tourism/shared": "*",

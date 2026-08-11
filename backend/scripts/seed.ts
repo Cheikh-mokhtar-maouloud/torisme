@@ -24,8 +24,6 @@ import { connectToDatabase, disconnectFromDatabase } from '../src/lib/db';
 import { hashPassword } from '../src/lib/auth/password';
 import { Attraction, Category, Excursion, Hotel, Restaurant, Room, User } from '../src/models';
 
-/* eslint-disable no-console -- script de développement, sortie destinée au terminal */
-
 /**
  * Images de démonstration.
  *

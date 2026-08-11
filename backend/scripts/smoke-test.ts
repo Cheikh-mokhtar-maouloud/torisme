@@ -10,8 +10,6 @@
  */
 const BASE_URL = process.env.SMOKE_BASE_URL ?? 'http://localhost:4000';
 
-/* eslint-disable no-console -- script de test, sortie destinée au terminal */
-
 let passed = 0;
 let failed = 0;
 

@@ -28,8 +28,6 @@ import { hashPassword } from '../src/lib/auth/password';
 import { connectToDatabase, disconnectFromDatabase } from '../src/lib/db';
 import { User } from '../src/models';
 
-/* eslint-disable no-console -- script d'administration, sortie destinée au terminal */
-
 async function createAdmin(): Promise<void> {
   const rawEmail = process.env.ADMIN_EMAIL;
   const rawPassword = process.env.ADMIN_PASSWORD;
