@@ -74,6 +74,40 @@ Contrainte à respecter dès maintenant pour que cette évolution reste possible
 **le backend doit rester sans état**. Aucune donnée en mémoire de processus
 (session, compteur, cache local) — tout état partagé va en base ou, plus tard, en Redis.
 
+## Authentification du dashboard
+
+Le dashboard ne fait **jamais** d'appel au backend depuis le navigateur :
+
+```
+navigateur ──► dashboard (server action / server component) ──► backend API
+               cookie HTTP-only sur son propre domaine        Authorization: Bearer
+```
+
+À la connexion, la server action interroge le backend, reçoit le jeton et le
+dépose dans un cookie posé par le dashboard sur **son** domaine. Toutes les
+lectures ultérieures partent du serveur Next, qui relit ce cookie et le
+transforme en en-tête `Authorization`.
+
+Trois problèmes disparaissent avec cette forme :
+
+- **CORS** — aucune requête inter-origines côté navigateur, donc rien à
+  autoriser ;
+- **cookies tiers** — en production le dashboard et l'API vivront sur des
+  domaines distincts ; un cookie porté par l'API exigerait `SameSite=None`,
+  que les navigateurs restreignent de plus en plus ;
+- **vol de jeton par XSS** — le jeton n'atteint jamais le JavaScript de la page.
+
+Le contrôle d'accès est appliqué à trois niveaux, du moins au plus fiable :
+le middleware constate la présence du cookie (filtre de confort), le layout
+protégé revalide la session auprès de `/api/auth/me` à chaque rendu, et l'API
+revérifie le rôle sur chaque route. Seul le dernier fait autorité.
+
+Contrainte à connaître : Next interdit d'écrire un cookie pendant le rendu d'un
+composant serveur. Une session périmée ne peut donc pas être effacée sur place —
+on redirige vers `/login?error=…`, et le middleware laisse passer cette page
+lorsqu'une erreur est signalée, sans quoi un cookie invalide provoquerait une
+boucle de redirection.
+
 ## Contrat d'API
 
 Toutes les réponses ont la même enveloppe :

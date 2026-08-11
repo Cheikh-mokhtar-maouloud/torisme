@@ -76,6 +76,20 @@ Il couvre l'autorisation par rôle, la visibilité des brouillons, la validation
 la pagination, la recherche géographique et le rejet des injections d'opérateurs
 MongoDB. À relancer après toute modification du backend.
 
+### Tests du dashboard
+
+Backend et dashboard démarrés, base remplie :
+
+```bash
+npm run smoke         --workspace dashboard   # 30 vérifications HTTP
+npm run test:payloads --workspace dashboard   # 14 vérifications des formulaires
+```
+
+Le premier vérifie la protection des routes, le cloisonnement des rôles et le
+rendu de chaque page. Le second teste la conversion `FormData` → corps de
+requête — notamment l'ordre des coordonnées GeoJSON — puis envoie réellement
+ces corps à l'API pour s'assurer que formulaires et schémas Zod ne divergent pas.
+
 > **Mobile sur appareil physique** : `localhost` désigne le téléphone, pas votre
 > machine. Renseigner l'IP locale du poste de développement dans
 > `mobile/.env.local` (`EXPO_PUBLIC_API_URL=http://192.168.x.x:4000`).
@@ -152,10 +166,22 @@ backend/
     ├── models/       Schémas Mongoose
     └── services/     Logique métier
 
-dashboard/src/
-├── app/              App Router
-├── components/       Composants d'interface  (Phase 3)
-└── lib/              Client API, utilitaires (Phase 3)
+dashboard/
+├── scripts/          smoke-test.mjs, payload-test.ts
+└── src/
+    ├── app/
+    │   ├── login/        Connexion (hors zone protégée)
+    │   └── (dashboard)/  Zone protégée : un module par dossier
+    ├── components/
+    │   ├── ui/           Boutons, champs, cartes, badges
+    │   ├── data/         Tableau, pagination, barre de filtres
+    │   ├── forms/        Groupes de champs partagés
+    │   └── layout/       Sidebar
+    ├── lib/
+    │   ├── api/          Client HTTP serveur, erreurs typées
+    │   ├── auth/         Session par cookie, garde administrateur
+    │   └── payloads.ts   FormData → corps de requête (testé)
+    └── middleware.ts
 
 mobile/
 ├── App.tsx           Point d'entrée

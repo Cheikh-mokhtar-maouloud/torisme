@@ -4,9 +4,10 @@ Base : `http://localhost:4000` en développement.
 La liste des chemins fait foi dans `shared/src/constants/api.ts` — le mobile et le
 dashboard ne doivent jamais écrire une URL d'API en dur.
 
-> Statut (Phase 2) : santé, authentification, hôtels, chambres, restaurants,
-> attractions, excursions et catégories sont **implémentés et testés**.
-> Réservations, avis, favoris et notifications décrivent encore le contrat cible.
+> Statut (Phase 3) : santé, authentification, hôtels, chambres, restaurants,
+> attractions, excursions, catégories, **utilisateurs et statistiques** sont
+> implémentés et testés. Réservations, avis, favoris et notifications décrivent
+> encore le contrat cible.
 
 ## Enveloppe de réponse
 
@@ -105,6 +106,24 @@ par le mobile via `Authorization: Bearer`) et posé en cookie HTTP-only `tourism
 
 Le même schéma s'applique à `/api/rooms`, `/api/restaurants`, `/api/attractions`,
 `/api/excursions`, `/api/categories` : lecture publique, écriture réservée à `ADMIN`.
+
+### Administration
+
+| Méthode | Chemin              | Accès |
+| ------- | ------------------- | ----- |
+| GET     | `/api/users`        | admin |
+| GET     | `/api/users/:id`    | admin |
+| PATCH   | `/api/users/:id`    | admin |
+| GET     | `/api/admin/stats`  | admin |
+
+`PATCH /api/users/:id` accepte `fullName`, `phone`, `role` et `isActive`.
+L'email en est absent : le modifier sur le compte d'un tiers permettrait d'en
+prendre le contrôle via la récupération de mot de passe.
+
+Deux garde-fous sont appliqués côté serveur : un administrateur ne peut ni se
+désactiver ni se retirer son propre rôle, et le dernier administrateur actif ne
+peut être ni désactivé ni rétrogradé — faute de quoi plus personne n'accéderait
+au dashboard.
 
 ### Réservations
 

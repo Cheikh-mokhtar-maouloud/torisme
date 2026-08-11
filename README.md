@@ -31,8 +31,9 @@ npm run dev:backend                # http://localhost:4000
 npm run dev:dashboard              # http://localhost:3000
 npm run dev:mobile                 # Expo
 
-npm run seed  --workspace backend  # données de développement
-npm run smoke --workspace backend  # 40 vérifications HTTP (serveur démarré)
+npm run seed  --workspace backend    # données de développement
+npm run smoke --workspace backend    # 40 vérifications API
+npm run smoke --workspace dashboard  # 30 vérifications dashboard
 ```
 
 Détails, prérequis et dépannage : [`docs/development.md`](docs/development.md).
@@ -63,7 +64,7 @@ npm run build          # build de production backend + dashboard
 | ----- | ------------------------------------ | ---------- |
 | 1     | Fondation du monorepo                | ✅ terminée |
 | 2     | Modèles et endpoints backend         | ✅ terminée |
-| 3     | Dashboard et CRUD                    | à venir    |
+| 3     | Dashboard et CRUD                    | ✅ terminée |
 | 4     | Premier déploiement                  | à venir    |
 | 5–16  | Mobile, carte, photos, réservations, notifications, temps réel, mise à l'échelle | à venir |
 
