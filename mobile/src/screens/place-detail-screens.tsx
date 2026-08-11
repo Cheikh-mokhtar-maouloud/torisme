@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Attraction, Excursion, Restaurant } from '@tourism/shared/types';
 
 import { useAttractions, useExcursions, useRestaurants } from '../api/queries';
-import { PlaceImage } from '../components/place-image';
+import { Gallery } from '../components/gallery';
 import { Badge, Card, Chip, Divider, ErrorState, Rating, Skeleton } from '../components/ui';
 import { formatDateTime, formatDuration, formatMoney } from '../lib/format';
 import { colors, spacing, typography } from '../theme';
@@ -227,9 +227,7 @@ function PlaceLayout({
       contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxl }}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.hero}>
-        <PlaceImage images={images} name={name} rounded={false} />
-      </View>
+      <Gallery images={images} name={name} height={240} />
 
       <View style={styles.body}>
         <Text style={styles.title}>{name}</Text>

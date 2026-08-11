@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Room } from '@tourism/shared/types';
 
+import { Gallery } from '../components/gallery';
 import { PlaceImage } from '../components/place-image';
 import { Card, Chip, Divider, EmptyState, ErrorState, Rating, Skeleton } from '../components/ui';
 import { useHotel, useHotelRooms } from '../api/queries';
@@ -53,9 +54,7 @@ export function HotelDetailScreen() {
       contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxl }}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.hero}>
-        <PlaceImage images={place.images} name={place.name} rounded={false} />
-      </View>
+      <Gallery images={place.images} name={place.name} height={260} />
 
       <View style={styles.body}>
         <Text style={styles.title}>{place.name}</Text>

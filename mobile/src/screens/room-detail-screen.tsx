@@ -3,7 +3,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PlaceImage } from '../components/place-image';
+import { Gallery } from '../components/gallery';
 import { Button, Chip, ErrorState, Skeleton } from '../components/ui';
 import { useRoom } from '../api/queries';
 import { formatMoney } from '../lib/format';
@@ -46,9 +46,7 @@ export function RoomDetailScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.hero}>
-          <PlaceImage images={data.images} name={data.name} rounded={false} />
-        </View>
+        <Gallery images={data.images} name={data.name} height={240} />
 
         <View style={styles.body}>
           <Text style={styles.title}>{data.name}</Text>
