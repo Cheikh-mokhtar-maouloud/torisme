@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { partialUpdateSchema } from './partial-update';
+
 import { ContentStatus, Currency } from '../constants/enums';
 import { listQuerySchema } from './common';
 import { imageRefSchema, objectIdSchema } from './primitives';
@@ -24,7 +26,7 @@ export type CreateRoomInput = z.infer<typeof createRoomSchema>;
  * `hotelId` n'est pas modifiable : déplacer une chambre d'un hôtel à l'autre
  * rendrait incohérentes les réservations déjà enregistrées sur cette chambre.
  */
-export const updateRoomSchema = createRoomSchema.omit({ hotelId: true }).partial();
+export const updateRoomSchema = partialUpdateSchema(createRoomSchema.omit({ hotelId: true }));
 export type UpdateRoomInput = z.infer<typeof updateRoomSchema>;
 
 export const roomListQuerySchema = listQuerySchema.extend({

@@ -1,4 +1,5 @@
 export * from './primitives';
+export * from './partial-update';
 export * from './common';
 export * from './auth';
 export * from './booking';

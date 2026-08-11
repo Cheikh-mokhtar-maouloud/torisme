@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { partialUpdateSchema } from './partial-update';
+
 import { PlaceType } from '../constants/enums';
 import { paginationSchema } from './primitives';
 
@@ -19,7 +21,7 @@ export const createCategorySchema = z.object({
 });
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 
-export const updateCategorySchema = createCategorySchema.partial();
+export const updateCategorySchema = partialUpdateSchema(createCategorySchema);
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
 
 export const categoryListQuerySchema = paginationSchema.extend({

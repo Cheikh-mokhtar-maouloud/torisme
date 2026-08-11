@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { partialUpdateSchema } from './partial-update';
+
 import { categoryIdsSchema, listQuerySchema, openingHoursSchema, placeBaseSchema } from './common';
 import { geoQuerySchema, objectIdSchema } from './primitives';
 
@@ -14,7 +16,7 @@ export const createRestaurantSchema = placeBaseSchema.extend({
 });
 export type CreateRestaurantInput = z.infer<typeof createRestaurantSchema>;
 
-export const updateRestaurantSchema = createRestaurantSchema.partial();
+export const updateRestaurantSchema = partialUpdateSchema(createRestaurantSchema);
 export type UpdateRestaurantInput = z.infer<typeof updateRestaurantSchema>;
 
 export const restaurantListQuerySchema = listQuerySchema

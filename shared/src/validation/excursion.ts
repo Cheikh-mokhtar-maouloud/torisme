@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { partialUpdateSchema } from './partial-update';
+
 import { Currency, ExcursionStatus } from '../constants/enums';
 import { listQuerySchema } from './common';
 import {
@@ -44,7 +46,7 @@ export const createExcursionSchema = z.object({
 });
 export type CreateExcursionInput = z.infer<typeof createExcursionSchema>;
 
-export const updateExcursionSchema = createExcursionSchema.partial();
+export const updateExcursionSchema = partialUpdateSchema(createExcursionSchema);
 export type UpdateExcursionInput = z.infer<typeof updateExcursionSchema>;
 
 export const excursionListQuerySchema = listQuerySchema.extend({

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { partialUpdateSchema } from './partial-update';
+
 import { Currency } from '../constants/enums';
 import { listQuerySchema, placeBaseSchema } from './common';
 import { geoQuerySchema, timeOfDaySchema } from './primitives';
@@ -20,7 +22,7 @@ export const createHotelSchema = placeBaseSchema.extend({
 });
 export type CreateHotelInput = z.infer<typeof createHotelSchema>;
 
-export const updateHotelSchema = createHotelSchema.partial();
+export const updateHotelSchema = partialUpdateSchema(createHotelSchema);
 export type UpdateHotelInput = z.infer<typeof updateHotelSchema>;
 
 export const hotelListQuerySchema = listQuerySchema
