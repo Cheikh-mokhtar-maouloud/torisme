@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../auth/auth-context';
@@ -76,6 +76,16 @@ export function ProfileScreen() {
         ) : null}
       </Card>
 
+      <Text style={styles.sectionTitle}>Mon compte</Text>
+      <Card style={styles.card}>
+        <ActionRow label="Modifier le profil" onPress={() => navigation.navigate('EditProfile')} />
+        <Divider />
+        <ActionRow
+          label="Changer le mot de passe"
+          onPress={() => navigation.navigate('ChangePassword')}
+        />
+      </Card>
+
       <Text style={styles.sectionTitle}>À venir</Text>
       <Card style={styles.card}>
         <Row label="Favoris" value="Phase 10" muted />
@@ -83,8 +93,6 @@ export function ProfileScreen() {
         <Row label="Mes avis" value="Phase 10" muted />
         <Divider />
         <Row label="Notifications" value="Phase 11" muted />
-        <Divider />
-        <Row label="Modifier le profil" value="Phase 8" muted />
       </Card>
 
       <Button
@@ -96,6 +104,20 @@ export function ProfileScreen() {
 
       <Text style={styles.version}>Tourism Platform · {appConfig.appEnv}</Text>
     </ScrollView>
+  );
+}
+
+/** Entrée cliquable menant à un écran de gestion du compte. */
+function ActionRow({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+    >
+      <Text style={styles.rowValue}>{label}</Text>
+      <Text style={styles.chevron}>›</Text>
+    </Pressable>
   );
 }
 
@@ -160,6 +182,8 @@ const styles = StyleSheet.create({
   rowLabel: { ...typography.body, color: colors.text.secondary },
   rowValue: { ...typography.body, color: colors.text.primary, fontWeight: '500' },
   rowMuted: { color: colors.text.muted },
+  rowPressed: { opacity: 0.6 },
+  chevron: { fontSize: 22, color: colors.text.muted, lineHeight: 24 },
 
   authActions: { gap: spacing.sm, minWidth: 220 },
   logout: { marginTop: spacing.lg },

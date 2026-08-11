@@ -3,6 +3,7 @@ import { ErrorCode } from '@tourism/shared/constants';
 
 import { appConfig } from '../config/env';
 import { getStoredToken } from '../auth/token-storage';
+import { refreshAccessToken } from './refresh';
 
 /**
  * Client HTTP de l'application mobile.
@@ -46,7 +47,7 @@ interface RequestOptions {
   signal?: AbortSignal;
 }
 
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+async function request<T>(path: string, options: RequestOptions = {}, isRetry = false): Promise<T> {
   const token = await getStoredToken();
 
   const controller = new AbortController();
@@ -99,7 +100,20 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     });
   }
 
-  if (!payload.success) throw new ApiRequestError(response.status, payload.error);
+  if (!payload.success) {
+    /*
+     * 401 sur une requête authentifiée : le jeton d'accès a probablement
+     * expiré. On tente un renouvellement puis on rejoue **une seule fois** —
+     * sans ce garde-fou, un jeton définitivement invalide provoquerait une
+     * boucle infinie de renouvellements.
+     */
+    if (response.status === 401 && token && !isRetry) {
+      const renewed = await refreshAccessToken();
+      if (renewed) return request<T>(path, options, true);
+    }
+
+    throw new ApiRequestError(response.status, payload.error);
+  }
 
   return payload.data;
 }

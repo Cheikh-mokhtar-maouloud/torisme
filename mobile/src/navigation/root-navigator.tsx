@@ -18,6 +18,7 @@ import {
   RestaurantDetailScreen,
 } from '../screens/place-detail-screens';
 import { LoginScreen, RegisterScreen } from '../screens/auth-screens';
+import { ChangePasswordScreen, EditProfileScreen } from '../screens/account-screens';
 import type { RootStackParamList, TabParamList } from './types';
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -136,6 +137,17 @@ export function RootNavigator() {
         name="ExcursionDetail"
         component={ExcursionDetailScreen}
         options={({ route }) => ({ title: route.params.title ?? 'Excursion' })}
+      />
+
+      <Stack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{ title: 'Profil' }}
+      />
+      <Stack.Screen
+        name="ChangePassword"
+        component={ChangePasswordScreen}
+        options={{ title: 'Mot de passe' }}
       />
 
       <Stack.Group screenOptions={{ presentation: 'modal' }}>

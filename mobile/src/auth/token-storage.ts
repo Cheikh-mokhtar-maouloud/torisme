@@ -14,6 +14,7 @@ import { Platform } from 'react-native';
  * et le web ne sert qu'à la mise au point.
  */
 const TOKEN_KEY = 'tourism_session_token';
+const REFRESH_KEY = 'tourism_refresh_token';
 
 const isSecureStoreAvailable = Platform.OS === 'ios' || Platform.OS === 'android';
 
@@ -22,6 +23,7 @@ const isSecureStoreAvailable = Platform.OS === 'ios' || Platform.OS === 'android
  * `undefined` signifie « pas encore lu », `null` « lu et absent ».
  */
 let cachedToken: string | null | undefined;
+let cachedRefreshToken: string | null | undefined;
 
 export async function getStoredToken(): Promise<string | null> {
   if (cachedToken !== undefined) return cachedToken;
@@ -48,8 +50,42 @@ export async function storeToken(token: string): Promise<void> {
   await SecureStore.setItemAsync(TOKEN_KEY, token);
 }
 
+/**
+ * Jeton de rafraîchissement.
+ *
+ * Stocké au même endroit que le jeton d'accès, mais il vaut bien plus : il
+ * permet d'obtenir de nouveaux jetons pendant trente jours. C'est précisément
+ * pourquoi il ne doit jamais quitter le trousseau sécurisé.
+ */
+export async function getStoredRefreshToken(): Promise<string | null> {
+  if (cachedRefreshToken !== undefined) return cachedRefreshToken;
+
+  if (!isSecureStoreAvailable) {
+    cachedRefreshToken = null;
+    return null;
+  }
+
+  try {
+    cachedRefreshToken = await SecureStore.getItemAsync(REFRESH_KEY);
+  } catch {
+    cachedRefreshToken = null;
+  }
+
+  return cachedRefreshToken;
+}
+
+export async function storeRefreshToken(token: string): Promise<void> {
+  cachedRefreshToken = token;
+  if (!isSecureStoreAvailable) return;
+  await SecureStore.setItemAsync(REFRESH_KEY, token);
+}
+
 export async function clearStoredToken(): Promise<void> {
   cachedToken = null;
+  cachedRefreshToken = null;
   if (!isSecureStoreAvailable) return;
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  await Promise.all([
+    SecureStore.deleteItemAsync(TOKEN_KEY),
+    SecureStore.deleteItemAsync(REFRESH_KEY),
+  ]);
 }

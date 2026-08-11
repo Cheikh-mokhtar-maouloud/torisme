@@ -5,11 +5,18 @@ import type { User } from '@tourism/shared/types';
 import type { LoginInput, RegisterInput } from '@tourism/shared/validation';
 
 import { api, ApiRequestError } from '../api/client';
-import { clearStoredToken, getStoredToken, storeToken } from './token-storage';
+import {
+  clearStoredToken,
+  getStoredRefreshToken,
+  getStoredToken,
+  storeRefreshToken,
+  storeToken,
+} from './token-storage';
 
 interface AuthResult {
   user: User;
   token: string;
+  refreshToken: string;
 }
 
 interface AuthContextValue {
@@ -20,6 +27,7 @@ interface AuthContextValue {
   login: (input: LoginInput) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -54,8 +62,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const currentUser = await api.get<User>('/api/auth/me');
         if (!cancelled) setUser(currentUser);
       } catch (error) {
-        // Jeton expiré ou compte désactivé : on nettoie. Une panne réseau, en
-        // revanche, ne doit pas déconnecter l'utilisateur.
+        /*
+         * Le client tente déjà un renouvellement transparent sur 401. Si l'on
+         * arrive ici avec une erreur d'autorisation, c'est que le jeton de
+         * rafraîchissement lui-même est refusé : la session est terminée.
+         *
+         * Une panne réseau, en revanche, ne doit pas déconnecter l'utilisateur.
+         */
         if (error instanceof ApiRequestError && error.isUnauthorized) {
           await clearStoredToken();
         }
@@ -70,23 +83,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const login = useCallback(async (input: LoginInput) => {
-    const result = await api.post<AuthResult>('/api/auth/login', input);
+  const persist = useCallback(async (result: AuthResult) => {
     await storeToken(result.token);
+    await storeRefreshToken(result.refreshToken);
     setUser(result.user);
   }, []);
 
-  const register = useCallback(async (input: RegisterInput) => {
-    const result = await api.post<AuthResult>('/api/auth/register', input);
-    await storeToken(result.token);
-    setUser(result.user);
+  const login = useCallback(
+    async (input: LoginInput) => {
+      await persist(await api.post<AuthResult>('/api/auth/login', input));
+    },
+    [persist],
+  );
+
+  const register = useCallback(
+    async (input: RegisterInput) => {
+      await persist(await api.post<AuthResult>('/api/auth/register', input));
+    },
+    [persist],
+  );
+
+  /** Rafraîchit l'utilisateur en mémoire après une modification du profil. */
+  const refreshUser = useCallback(async () => {
+    setUser(await api.get<User>('/api/auth/me'));
   }, []);
 
   const logout = useCallback(async () => {
     // L'appel serveur efface le cookie ; son échec ne doit pas empêcher la
     // déconnexion locale, qui est ce que l'utilisateur a demandé.
     try {
-      await api.post('/api/auth/logout');
+      // Le jeton de rafraîchissement est transmis pour être **révoqué** côté
+      // serveur : sans lui, il resterait valide trente jours après la
+      // déconnexion.
+      await api.post('/api/auth/logout', { refreshToken: await getStoredRefreshToken() });
     } catch {
       // Ignoré volontairement.
     }
@@ -102,8 +131,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       register,
       logout,
+      refreshUser,
     }),
-    [user, isRestoring, login, register, logout],
+    [user, isRestoring, login, register, logout, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

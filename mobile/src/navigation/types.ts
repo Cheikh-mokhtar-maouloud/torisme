@@ -29,6 +29,8 @@ export type RootStackParamList = {
   RestaurantDetail: { restaurantId: string; name?: string };
   AttractionDetail: { attractionId: string; name?: string };
   ExcursionDetail: { excursionId: string; title?: string };
+  EditProfile: undefined;
+  ChangePassword: undefined;
   Login: { message?: string } | undefined;
   Register: undefined;
 };
