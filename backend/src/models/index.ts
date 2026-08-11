@@ -5,3 +5,4 @@ export { Room, type RoomDocument } from './room.model';
 export { Restaurant, type RestaurantDocument } from './restaurant.model';
 export { Attraction, type AttractionDocument } from './attraction.model';
 export { Excursion, type ExcursionDocument } from './excursion.model';
+export { Booking, type BookingDocument } from './booking.model';
