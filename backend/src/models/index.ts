@@ -8,3 +8,4 @@ export { Excursion, type ExcursionDocument } from './excursion.model';
 export { Booking, type BookingDocument } from './booking.model';
 export { BookingLock, type BookingLockDocument } from './booking-lock.model';
 export { Session, type SessionDocument } from './session.model';
+export { ExcursionBooking, type ExcursionBookingDocument } from './excursion-booking.model';

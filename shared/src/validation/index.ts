@@ -11,3 +11,4 @@ export * from './room';
 export * from './restaurant';
 export * from './attraction';
 export * from './excursion';
+export * from './excursion-booking';
