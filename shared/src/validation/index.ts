@@ -2,6 +2,7 @@ export * from './primitives';
 export * from './common';
 export * from './auth';
 export * from './category';
+export * from './user';
 export * from './hotel';
 export * from './room';
 export * from './restaurant';
