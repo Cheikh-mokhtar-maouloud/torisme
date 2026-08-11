@@ -1,0 +1,27 @@
+import { z } from 'zod';
+
+import { categoryIdsSchema, listQuerySchema, openingHoursSchema, placeBaseSchema } from './common';
+import { geoQuerySchema, objectIdSchema } from './primitives';
+
+export const createRestaurantSchema = placeBaseSchema.extend({
+  cuisineTypes: z.array(z.string().trim().min(1).max(60)).max(15).default([]),
+  /** Gamme de prix de 1 (économique) à 4 (haut de gamme). */
+  priceRange: z.coerce.number().int().min(1).max(4),
+  phone: z.string().trim().max(30).optional(),
+  openingHours: openingHoursSchema.optional(),
+  menuUrl: z.url().optional(),
+  categoryIds: categoryIdsSchema,
+});
+export type CreateRestaurantInput = z.infer<typeof createRestaurantSchema>;
+
+export const updateRestaurantSchema = createRestaurantSchema.partial();
+export type UpdateRestaurantInput = z.infer<typeof updateRestaurantSchema>;
+
+export const restaurantListQuerySchema = listQuerySchema
+  .extend({
+    categoryId: objectIdSchema.optional(),
+    cuisine: z.string().trim().max(60).optional(),
+    maxPriceRange: z.coerce.number().int().min(1).max(4).optional(),
+  })
+  .and(geoQuerySchema);
+export type RestaurantListQuery = z.infer<typeof restaurantListQuerySchema>;

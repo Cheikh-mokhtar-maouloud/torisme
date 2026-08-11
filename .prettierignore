@@ -7,3 +7,6 @@ coverage
 .expo
 package-lock.json
 *.md
+
+# Généré par Next.js à chaque build : ne pas reformater.
+next-env.d.ts
