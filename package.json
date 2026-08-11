@@ -1,0 +1,28 @@
+{
+  "name": "tourism-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plateforme touristique full-stack (mobile React Native, dashboard Next.js, backend Next.js API, MongoDB)",
+  "workspaces": [
+    "shared",
+    "backend",
+    "dashboard",
+    "mobile"
+  ],
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "dev:backend": "npm run dev --workspace backend",
+    "dev:dashboard": "npm run dev --workspace dashboard",
+    "dev:mobile": "npm run start --workspace mobile",
+    "build": "npm run build --workspace backend && npm run build --workspace dashboard",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2"
+  }
+}
