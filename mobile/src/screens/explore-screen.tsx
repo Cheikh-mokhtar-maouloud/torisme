@@ -1,0 +1,250 @@
+import { useState, type ReactElement } from 'react';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { FlatList, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import type { Attraction, Excursion, Hotel, Restaurant } from '@tourism/shared/types';
+
+import {
+  AttractionCard,
+  CardSkeleton,
+  ExcursionCard,
+  HotelCard,
+  RestaurantCard,
+} from '../components/cards';
+import { Chip, EmptyState, ErrorState, Input } from '../components/ui';
+import { useAttractions, useExcursions, useHotels, useRestaurants } from '../api/queries';
+import { useDebouncedValue } from '../lib/use-debounced-value';
+import { colors, spacing } from '../theme';
+import type { PlaceTab, RootStackParamList, TabParamList } from '../navigation/types';
+
+type Navigation = NativeStackNavigationProp<RootStackParamList>;
+
+const TABS: { type: PlaceTab; label: string }[] = [
+  { type: 'hotels', label: 'Hôtels' },
+  { type: 'attractions', label: 'Sites' },
+  { type: 'excursions', label: 'Excursions' },
+  { type: 'restaurants', label: 'Restaurants' },
+];
+
+/**
+ * Explorer : recherche et listes par type de lieu.
+ *
+ * La recherche est temporisée : sans cela, chaque frappe déclencherait une
+ * requête, soit une dizaine d'allers-retours pour un seul mot sur un réseau
+ * mobile déjà lent.
+ */
+export function ExploreScreen() {
+  const route = useRoute<RouteProp<TabParamList, 'Explore'>>();
+  const insets = useSafeAreaInsets();
+
+  const [activeTab, setActiveTab] = useState<PlaceTab>(route.params?.initialType ?? 'hotels');
+  const [searchInput, setSearchInput] = useState('');
+  const search = useDebouncedValue(searchInput, 400).trim();
+
+  /*
+   * L'accueil peut demander un onglet précis en arrivant ici. L'écran restant
+   * monté d'une visite à l'autre, l'état doit être ajusté quand le paramètre
+   * change.
+   *
+   * L'ajustement se fait pendant le rendu, pas dans un effet : React réexécute
+   * alors immédiatement le composant avec la bonne valeur, sans afficher
+   * l'ancien onglet le temps d'un rendu intermédiaire.
+   */
+  const requestedTab = route.params?.initialType;
+  const [lastRequestedTab, setLastRequestedTab] = useState(requestedTab);
+
+  if (requestedTab !== lastRequestedTab) {
+    setLastRequestedTab(requestedTab);
+    if (requestedTab) setActiveTab(requestedTab);
+  }
+
+  return (
+    <View style={[styles.screen, { paddingTop: insets.top + spacing.sm }]}>
+      <View style={styles.searchRow}>
+        <Input
+          value={searchInput}
+          onChangeText={setSearchInput}
+          placeholder="Rechercher…"
+          returnKeyType="search"
+          autoCorrect={false}
+          accessibilityLabel="Rechercher"
+          clearButtonMode="while-editing"
+        />
+      </View>
+
+      <FlatList
+        horizontal
+        data={TABS}
+        keyExtractor={(tab) => tab.type}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.tabs}
+        style={styles.tabsList}
+        renderItem={({ item }) => (
+          <Chip
+            label={item.label}
+            selected={activeTab === item.type}
+            onPress={() => setActiveTab(item.type)}
+          />
+        )}
+      />
+
+      <ExploreList tab={activeTab} search={search} bottomInset={insets.bottom} />
+    </View>
+  );
+}
+
+/**
+ * Une liste typée par onglet.
+ *
+ * Un `FlatList` unique partagé par les quatre types imposerait de caster les
+ * éléments, ce qui ferait disparaître toute vérification de types là où elle
+ * est justement utile. Quatre branches explicites coûtent quelques lignes et
+ * gardent chaque carte reliée à son entité.
+ */
+function ExploreList({
+  tab,
+  search,
+  bottomInset,
+}: {
+  tab: PlaceTab;
+  search: string;
+  bottomInset: number;
+}) {
+  const navigation = useNavigation<Navigation>();
+  const term = search || undefined;
+
+  // Les quatre hooks sont appelés à chaque rendu — les règles de React
+  // l'imposent — mais seul celui de l'onglet actif déclenche une requête,
+  // les autres restant servis par le cache de React Query.
+  const hotels = useHotels(term ? { search: term } : {});
+  const attractions = useAttractions(term);
+  const excursions = useExcursions(term);
+  const restaurants = useRestaurants(term);
+
+  const query =
+    tab === 'attractions'
+      ? attractions
+      : tab === 'excursions'
+        ? excursions
+        : tab === 'restaurants'
+          ? restaurants
+          : hotels;
+
+  if (query.error) {
+    return (
+      <ErrorState
+        message={query.error instanceof Error ? query.error.message : 'Chargement impossible.'}
+        onRetry={() => void query.refetch()}
+      />
+    );
+  }
+
+  if (query.isLoading) {
+    return (
+      <View style={styles.list}>
+        {[0, 1, 2].map((index) => (
+          <CardSkeleton key={index} />
+        ))}
+      </View>
+    );
+  }
+
+  const listProps = {
+    contentContainerStyle: [styles.list, { paddingBottom: bottomInset + spacing.xxl }],
+    showsVerticalScrollIndicator: false,
+    // Le rafraîchissement par traction est l'attente standard sur une liste
+    // mobile ; son absence passe pour une application figée.
+    refreshing: query.isRefetching,
+    onRefresh: () => void query.refetch(),
+    ListEmptyComponent: (
+      <EmptyState
+        title="Aucun résultat"
+        message={
+          search
+            ? `Rien ne correspond à « ${search} ». Essayez un autre terme.`
+            : 'Aucun contenu publié pour le moment.'
+        }
+      />
+    ) as ReactElement,
+  };
+
+  if (tab === 'attractions') {
+    return (
+      <FlatList<Attraction>
+        data={attractions.data?.items ?? []}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <AttractionCard
+            attraction={item}
+            onPress={() =>
+              navigation.navigate('AttractionDetail', { attractionId: item.id, name: item.name })
+            }
+          />
+        )}
+        {...listProps}
+      />
+    );
+  }
+
+  if (tab === 'excursions') {
+    return (
+      <FlatList<Excursion>
+        data={excursions.data?.items ?? []}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <ExcursionCard
+            excursion={item}
+            onPress={() =>
+              navigation.navigate('ExcursionDetail', { excursionId: item.id, title: item.title })
+            }
+          />
+        )}
+        {...listProps}
+      />
+    );
+  }
+
+  if (tab === 'restaurants') {
+    return (
+      <FlatList<Restaurant>
+        data={restaurants.data?.items ?? []}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <RestaurantCard
+            restaurant={item}
+            onPress={() =>
+              navigation.navigate('RestaurantDetail', { restaurantId: item.id, name: item.name })
+            }
+          />
+        )}
+        {...listProps}
+      />
+    );
+  }
+
+  return (
+    <FlatList<Hotel>
+      data={hotels.data?.items ?? []}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        <HotelCard
+          hotel={item}
+          onPress={() =>
+            navigation.navigate('HotelDetail', { hotelId: item.id, hotelName: item.name })
+          }
+        />
+      )}
+      {...listProps}
+    />
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.surface.subtle },
+  searchRow: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
+  tabsList: { flexGrow: 0 },
+  tabs: { paddingHorizontal: spacing.lg, gap: spacing.sm, paddingVertical: spacing.sm },
+  list: { padding: spacing.lg, gap: spacing.md },
+});

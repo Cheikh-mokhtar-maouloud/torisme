@@ -1,99 +1,102 @@
+import { NavigationContainer, DefaultTheme, type Theme } from '@react-navigation/native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { DEFAULT_CURRENCY, SUPPORTED_COUNTRIES } from '@tourism/shared/constants';
-
-import { appConfig } from './src/config/env';
-import { colors, radius, spacing, typography } from './src/theme';
+import { ApiRequestError } from './src/api/client';
+import { AuthProvider, useAuth } from './src/auth/auth-context';
+import { RootNavigator } from './src/navigation/root-navigator';
+import { colors } from './src/theme';
 
 /**
- * Écran provisoire de Phase 1.
+ * Client de données partagé par toute l'application.
  *
- * Il vérifie trois choses en une seule vue : la résolution du paquet partagé
- * par Metro, la lecture de la configuration Expo, et les jetons de design.
- * Remplacé par la navigation réelle en Phase 5.
+ * Créé au niveau du module et non dans le composant : le recréer à chaque
+ * rendu viderait le cache et relancerait toutes les requêtes.
  */
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Les fiches de contenu changent rarement ; une minute évite de
+      // recharger à chaque aller-retour entre liste et détail.
+      staleTime: 60_000,
+      retry: (failureCount, error) => {
+        // Réessayer une erreur d'autorisation ou de validation est inutile :
+        // seules les défaillances réseau méritent une nouvelle tentative.
+        if (error instanceof ApiRequestError && !error.isNetworkError) return false;
+        return failureCount < 2;
+      },
+    },
+    mutations: {
+      // Une mutation rejouée automatiquement pourrait créer deux réservations.
+      retry: false,
+    },
+  },
+});
+
+/** Thème de navigation aligné sur les jetons de design de l'application. */
+const navigationTheme: Theme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: colors.brand[600],
+    background: colors.surface.subtle,
+    card: colors.surface.background,
+    text: colors.text.primary,
+    border: colors.surface.border,
+  },
+};
+
 export default function App() {
   return (
-    <SafeAreaView style={styles.screen}>
-      <StatusBar style="dark" />
-      <View style={styles.content}>
-        <Text style={styles.eyebrow}>PHASE 1</Text>
-        <Text style={styles.title}>Tourism Platform</Text>
-        <Text style={styles.subtitle}>
-          Fondation en place. La navigation et les écrans arrivent en Phase 5.
-        </Text>
-
-        <View style={styles.card}>
-          <Row label="API" value={appConfig.apiUrl} />
-          <Row label="Environnement" value={appConfig.appEnv} />
-          <Row label="Devise" value={DEFAULT_CURRENCY} />
-          <Row label="Pays" value={SUPPORTED_COUNTRIES.map((country) => country.name).join(', ')} />
-        </View>
-      </View>
-    </SafeAreaView>
+    // `GestureHandlerRootView` doit envelopper toute l'application, sinon les
+    // gestes de navigation ne remontent pas sur Android.
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <StatusBar style="dark" />
+            <AppContent />
+          </AuthProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+/**
+ * Attend la restauration de session avant d'afficher la navigation.
+ *
+ * Sans cette attente, un utilisateur déjà connecté verrait brièvement les
+ * écrans en mode déconnecté — « Connectez-vous » puis son profil — un
+ * scintillement qui donne l'impression d'une déconnexion involontaire.
+ */
+function AppContent() {
+  const { isRestoring } = useAuth();
+
+  if (isRestoring) {
+    return (
+      <View style={styles.splash}>
+        <ActivityIndicator size="large" color={colors.brand[600]} />
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue} numberOfLines={1}>
-        {value}
-      </Text>
-    </View>
+    <NavigationContainer theme={navigationTheme}>
+      <RootNavigator />
+    </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  root: { flex: 1 },
+  splash: {
     flex: 1,
-    backgroundColor: colors.surface.subtle,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-    gap: spacing.sm,
-  },
-  eyebrow: {
-    ...typography.caption,
-    color: colors.brand[700],
-    letterSpacing: 1.5,
-    fontWeight: '600',
-  },
-  title: {
-    ...typography.h1,
-    color: colors.text.primary,
-  },
-  subtitle: {
-    ...typography.body,
-    color: colors.text.secondary,
-    marginBottom: spacing.lg,
-  },
-  card: {
-    backgroundColor: colors.surface.background,
-    borderRadius: radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.surface.border,
-    paddingHorizontal: spacing.lg,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  rowLabel: {
-    ...typography.caption,
-    color: colors.text.muted,
-  },
-  rowValue: {
-    ...typography.caption,
-    color: colors.text.primary,
-    flexShrink: 1,
-    textAlign: 'right',
+    justifyContent: 'center',
+    backgroundColor: colors.surface.subtle,
   },
 });
