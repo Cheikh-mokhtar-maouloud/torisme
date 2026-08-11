@@ -10,7 +10,8 @@ import {
 } from '@tourism/shared/validation';
 
 import { HttpError } from '@/lib/errors';
-import { paginateQuery, type PaginatedResult } from '@/lib/query';
+import { escapeRegex, paginateQuery, type PaginatedResult } from '@/lib/query';
+import { withRoomLock } from '@/lib/room-lock';
 import { serializeDocument } from '@/lib/serialize';
 import { Booking, Hotel, Room } from '@/models';
 
@@ -124,45 +125,46 @@ export async function createBooking(
     throw HttpError.notFound('Hôtel introuvable');
   }
 
-  const bookedUnits = await countOverlapping(String(room._id), checkIn, checkOut);
-  if (bookedUnits >= room.totalUnits) {
-    throw new HttpError(
-      ErrorCode.ROOM_UNAVAILABLE,
-      'Cette chambre n’est plus disponible sur ces dates',
-      409,
-    );
-  }
-
   const nights = countNights(checkIn, checkOut);
 
-  const created = await Booking.create({
-    reference: generateReference(),
-    userId,
-    hotelId: room.hotelId,
-    roomId: room._id,
-    checkIn,
-    checkOut,
-    nights,
-    guests: input.guests,
-    unitPrice: room.pricePerNight,
-    totalPrice: room.pricePerNight * nights,
-    currency: room.currency,
-    status: BookingStatus.PENDING,
-  });
-
   /*
-   * Limite connue, à lever en Phase 8.
+   * Comptage et insertion sous verrou.
    *
-   * Entre le comptage ci-dessus et cette insertion, deux requêtes simultanées
-   * peuvent toutes deux voir la dernière unité comme libre et réserver la même.
-   * La fenêtre est de quelques millisecondes et le nombre d'unités est
-   * généralement supérieur à un, ce qui rend l'occurrence rare — mais elle
-   * existe.
+   * Ces deux opérations doivent être indivisibles : exécutées sans protection,
+   * deux requêtes simultanées voient toutes deux la dernière unité libre et la
+   * réservent. Le verrou porte sur la chambre — deux chambres différentes se
+   * réservent donc toujours en parallèle.
    *
-   * La correction demande une transaction multi-documents, donc un replica set
-   * (MongoDB Atlas en fournit un ; une instance locale par défaut, non). Elle
-   * est planifiée en Phase 8 avec le verrouillage temporaire de stock.
+   * Le choix d'un verrou plutôt que d'une transaction est délibéré : il ne
+   * requiert pas de replica set, et se comporte donc de façon identique sur une
+   * instance locale et sur Atlas. Voir `lib/room-lock.ts`.
    */
+  const created = await withRoomLock(String(room._id), async () => {
+    const bookedUnits = await countOverlapping(String(room._id), checkIn, checkOut);
+
+    if (bookedUnits >= room.totalUnits) {
+      throw new HttpError(
+        ErrorCode.ROOM_UNAVAILABLE,
+        'Cette chambre n’est plus disponible sur ces dates',
+        409,
+      );
+    }
+
+    return Booking.create({
+      reference: generateReference(),
+      userId,
+      hotelId: room.hotelId,
+      roomId: room._id,
+      checkIn,
+      checkOut,
+      nights,
+      guests: input.guests,
+      unitPrice: room.pricePerNight,
+      totalPrice: room.pricePerNight * nights,
+      currency: room.currency,
+      status: BookingStatus.PENDING,
+    });
+  });
 
   return serializeDocument<BookingDto>(created.toObject());
 }
@@ -182,6 +184,13 @@ export async function listBookings(
   }
 
   if (query.status) filter.status = query.status;
+
+  // La recherche par référence n'a de sens que pour l'administration, qui prend
+  // une référence au téléphone. Un utilisateur ne voit de toute façon que ses
+  // propres réservations.
+  if (query.search && actor.role === UserRole.ADMIN) {
+    filter.reference = { $regex: escapeRegex(query.search), $options: 'i' };
+  }
 
   return paginateQuery(
     Booking,
