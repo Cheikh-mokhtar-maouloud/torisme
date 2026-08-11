@@ -76,6 +76,8 @@ export const bookingListQuerySchema = paginationSchema.extend({
   status: z.enum(BookingStatus).optional(),
   /** Réservé aux administrateurs ; ignoré pour un utilisateur standard. */
   userId: objectIdSchema.optional(),
+  /** Recherche par référence (« TP-… »), réservée aux administrateurs. */
+  search: z.string().trim().min(2).max(40).optional(),
 });
 export type BookingListQuery = z.infer<typeof bookingListQuerySchema>;
 

@@ -10,6 +10,12 @@ const eslintConfig = defineConfig([
       'no-console': ['error', { allow: ['warn', 'error'] }],
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
+      // Le préfixe `_` marque un paramètre imposé par une signature externe
+      // (server actions, gestionnaires de route) mais volontairement inutilisé.
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
     },
   },
   {
