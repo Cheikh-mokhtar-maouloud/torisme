@@ -35,6 +35,10 @@ const config: ExpoConfig = {
   web: {
     favicon: './assets/favicon.png',
   },
+  // Ces modules embarquent du code natif : le plugin l'ajoute au projet lors du
+  // `prebuild` ou du build EAS. Sans cette déclaration, ils fonctionnent dans
+  // Expo Go mais échouent dans une compilation native.
+  plugins: ['expo-secure-store', 'expo-image'],
   extra: {
     apiUrl: process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000',
     appEnv: process.env.EXPO_PUBLIC_APP_ENV ?? 'development',
