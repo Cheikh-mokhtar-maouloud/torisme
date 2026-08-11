@@ -123,8 +123,24 @@ liste paginée avec filtre géographique échouerait en erreur serveur. Le cas a
 rencontré et corrigé en Phase 2.
 
 `$centerSphere` attend un rayon en **radians**, d'où la division par le rayon
-terrestre (`GEO.EARTH_RADIUS_METERS`). Le tri par distance relèvera d'un endpoint
-dédié à la carte, construit sur `$geoNear` (Phase 6).
+terrestre (`GEO.EARTH_RADIUS_METERS`).
+
+### Le cas de la carte (Phase 6)
+
+`/api/map` utilise les deux opérateurs, selon le besoin :
+
+| Besoin | Opérateur | Pourquoi |
+| --- | --- | --- |
+| Cadre visible | `$geoWithin` + `$box` | correspond exactement au rectangle affiché ; compatible avec `countDocuments` |
+| Autour d'un point, trié | `$geoNear` | seul opérateur exposant la distance calculée |
+
+`$geoNear` impose deux contraintes : il doit être la **première** étape du
+pipeline, et ses filtres passent par sa clause `query` — filtrer par un `$match`
+ultérieur ferait porter la limite de distance sur des documents ensuite écartés,
+donnant moins de résultats que demandé.
+
+Les quatre collections étant interrogées en parallèle, chacune revient triée par
+distance mais leur fusion ne l'est plus : le tri final est refait sur l'ensemble.
 
 ## Transactions
 

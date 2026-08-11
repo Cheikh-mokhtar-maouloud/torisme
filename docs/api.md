@@ -93,6 +93,33 @@ par le mobile via `Authorization: Bearer`) et posé en cookie HTTP-only `tourism
 
 `forgot-password` et `reset-password` sont livrés en Phase 8.
 
+### Carte
+
+| Méthode | Chemin     | Accès  |
+| ------- | ---------- | ------ |
+| GET     | `/api/map` | public |
+
+Marqueurs géolocalisés, tous types confondus, en une seule requête. Deux modes
+exclusifs :
+
+| Mode | Paramètres | Usage |
+| --- | --- | --- |
+| Cadre visible | `swLat`, `swLng`, `neLat`, `neLng` | déplacement et zoom de la carte |
+| Autour d'un point | `latitude`, `longitude`, `radiusMeters` | « autour de moi », **trié par distance** |
+
+Filtres : `types=HOTEL,RESTAURANT,ATTRACTION,EXCURSION` · `limit` (60 par défaut, 200 max).
+
+Le mode « autour d'un point » est le seul à renvoyer `distanceMeters`, car seul
+`$geoNear` expose la distance calculée — et il doit être la **première** étape du
+pipeline d'agrégation, ce qui interdit de filtrer en amont.
+
+La réponse porte `countsByType` (compteurs des filtres) et `truncated`, vrai
+lorsqu'un plafond a été atteint : la carte invite alors à zoomer plutôt que
+d'afficher un sous-ensemble arbitraire sans le dire.
+
+Un cadre incomplet, un cadre inversé (sud-ouest au nord du nord-est) ou une
+latitude sans longitude renvoient **422**.
+
 ### Contenu
 
 | Méthode | Chemin                        | Accès  |
