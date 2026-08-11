@@ -19,6 +19,11 @@ import {
 } from '../screens/place-detail-screens';
 import { LoginScreen, RegisterScreen } from '../screens/auth-screens';
 import { ChangePasswordScreen, EditProfileScreen } from '../screens/account-screens';
+import { ExcursionBookingScreen } from '../screens/excursion-booking-screen';
+import {
+  ExcursionBookingConfirmationScreen,
+  ExcursionBookingDetailScreen,
+} from '../screens/excursion-booking-detail-screen';
 import type { RootStackParamList, TabParamList } from './types';
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -137,6 +142,27 @@ export function RootNavigator() {
         name="ExcursionDetail"
         component={ExcursionDetailScreen}
         options={({ route }) => ({ title: route.params.title ?? 'Excursion' })}
+      />
+
+      <Stack.Screen
+        name="ExcursionBooking"
+        component={ExcursionBookingScreen}
+        options={{ title: 'Réserver' }}
+      />
+      <Stack.Screen
+        name="ExcursionBookingConfirmation"
+        component={ExcursionBookingConfirmationScreen}
+        options={{
+          title: 'Réservation',
+          // Revenir au formulaire après une réservation créée risquerait un doublon.
+          headerBackVisible: false,
+          gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen
+        name="ExcursionBookingDetail"
+        component={ExcursionBookingDetailScreen}
+        options={{ title: 'Réservation' }}
       />
 
       <Stack.Screen

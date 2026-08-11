@@ -1,4 +1,5 @@
-import { useRoute, type RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -6,7 +7,7 @@ import type { Attraction, Excursion, Restaurant } from '@tourism/shared/types';
 
 import { useAttractions, useExcursions, useRestaurants } from '../api/queries';
 import { Gallery } from '../components/gallery';
-import { Badge, Card, Chip, Divider, ErrorState, Rating, Skeleton } from '../components/ui';
+import { Badge, Button, Card, Chip, Divider, ErrorState, Rating, Skeleton } from '../components/ui';
 import { formatDateTime, formatDuration, formatMoney } from '../lib/format';
 import { colors, spacing, typography } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -110,6 +111,7 @@ export function AttractionDetailScreen() {
 
 export function ExcursionDetailScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'ExcursionDetail'>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const query = useExcursions();
   const excursion = query.data?.items.find(
     (item: Excursion) => item.id === route.params.excursionId,
@@ -170,7 +172,12 @@ export function ExcursionDetailScreen() {
             </>
           ) : null}
 
-          <Text style={styles.note}>La réservation d’excursion arrive en Phase 9.</Text>
+          <Button
+            label={excursion.availableSeats === 0 ? 'Complet' : 'Réserver une place'}
+            onPress={() => navigation.navigate('ExcursionBooking', { excursionId: excursion.id })}
+            disabled={excursion.availableSeats === 0}
+            style={styles.bookButton}
+          />
         </>
       ) : null}
     </PlaceLayout>
@@ -310,10 +317,5 @@ const styles = StyleSheet.create({
   stepTitle: { ...typography.body, color: colors.text.primary, fontWeight: '600' },
   stepDescription: { ...typography.caption, color: colors.text.secondary, lineHeight: 19 },
 
-  note: {
-    ...typography.caption,
-    color: colors.text.muted,
-    marginTop: spacing.xl,
-    fontStyle: 'italic',
-  },
+  bookButton: { marginTop: spacing.xl },
 });

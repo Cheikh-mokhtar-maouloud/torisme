@@ -13,7 +13,8 @@
     "create-admin": "tsx scripts/create-admin.ts",
     "test:uploads": "node scripts/upload-test.mjs",
     "test:concurrency": "node scripts/concurrency-test.mjs",
-    "test:auth": "node scripts/auth-test.mjs"
+    "test:auth": "node scripts/auth-test.mjs",
+    "test:excursions": "node scripts/excursion-test.mjs"
   },
   "dependencies": {
     "@tourism/shared": "*",

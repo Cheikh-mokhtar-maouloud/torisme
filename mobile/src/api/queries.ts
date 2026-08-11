@@ -4,12 +4,13 @@ import type {
   Attraction,
   Booking,
   Excursion,
+  ExcursionBooking,
   Hotel,
   Paginated,
   Restaurant,
   Room,
 } from '@tourism/shared/types';
-import type { CreateBookingInput } from '@tourism/shared/validation';
+import type { CreateBookingInput, CreateExcursionBookingInput } from '@tourism/shared/validation';
 
 import { api, toQuery } from './client';
 
@@ -33,6 +34,8 @@ export const queryKeys = {
   excursions: (search?: string) => ['excursions', search ?? ''] as const,
   bookings: () => ['bookings'] as const,
   booking: (id: string) => ['booking', id] as const,
+  excursionBookings: () => ['excursion-bookings'] as const,
+  excursionBooking: (id: string) => ['excursion-booking', id] as const,
 };
 
 export interface HotelListParams {
@@ -159,6 +162,60 @@ export function useCreateBooking() {
       // changer : les laisser en cache afficherait un état faux.
       void queryClient.invalidateQueries({ queryKey: queryKeys.bookings() });
       void queryClient.invalidateQueries({ queryKey: ['availability', booking.roomId] });
+    },
+  });
+}
+
+export function useExcursion(excursionId: string) {
+  return useQuery({
+    queryKey: ['excursion', excursionId],
+    queryFn: ({ signal }) => api.get<Excursion>(`/api/excursions/${excursionId}`, signal),
+  });
+}
+
+export function useExcursionBookings(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.excursionBookings(),
+    queryFn: ({ signal }) => api.list<ExcursionBooking>('/api/excursion-bookings?limit=50', signal),
+    enabled,
+  });
+}
+
+export function useExcursionBooking(bookingId: string) {
+  return useQuery({
+    queryKey: queryKeys.excursionBooking(bookingId),
+    queryFn: ({ signal }) =>
+      api.get<ExcursionBooking>(`/api/excursion-bookings/${bookingId}`, signal),
+  });
+}
+
+export function useCreateExcursionBooking() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreateExcursionBookingInput) =>
+      api.post<ExcursionBooking>('/api/excursion-bookings', input),
+    onSuccess: (booking) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.excursionBookings() });
+      // Les places restantes ont changé : la fiche et la liste doivent suivre.
+      void queryClient.invalidateQueries({ queryKey: ['excursion', booking.excursionId] });
+      void queryClient.invalidateQueries({ queryKey: ['excursions'] });
+    },
+  });
+}
+
+export function useCancelExcursionBooking() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (bookingId: string) =>
+      api.patch<ExcursionBooking>(`/api/excursion-bookings/${bookingId}/cancel`, {}),
+    onSuccess: (booking) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.excursionBookings() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.excursionBooking(booking.id) });
+      // L'annulation restitue des places.
+      void queryClient.invalidateQueries({ queryKey: ['excursion', booking.excursionId] });
+      void queryClient.invalidateQueries({ queryKey: ['excursions'] });
     },
   });
 }
