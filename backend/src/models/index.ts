@@ -9,3 +9,5 @@ export { Booking, type BookingDocument } from './booking.model';
 export { BookingLock, type BookingLockDocument } from './booking-lock.model';
 export { Session, type SessionDocument } from './session.model';
 export { ExcursionBooking, type ExcursionBookingDocument } from './excursion-booking.model';
+export { Review, type ReviewDocument } from './review.model';
+export { Favorite, type FavoriteDocument } from './favorite.model';

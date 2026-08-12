@@ -3,6 +3,8 @@ export * from './partial-update';
 export * from './common';
 export * from './auth';
 export * from './booking';
+export * from './review';
+export * from './favorite';
 export * from './category';
 export * from './user';
 export * from './hotel';

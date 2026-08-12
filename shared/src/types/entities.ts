@@ -164,6 +164,10 @@ export interface Review extends Timestamps {
   comment?: string;
   images: ImageRef[];
   status: ReviewStatus;
+  /** Date de la décision de modération, absente tant que l'avis est en attente. */
+  moderatedAt?: IsoDate;
+  /** Motif interne de rejet, jamais exposé à l'auteur pour l'instant. */
+  moderationReason?: string;
   reportCount: number;
 }
 
