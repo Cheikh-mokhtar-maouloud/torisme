@@ -43,6 +43,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 | Backend API | `npm run dev:backend`  | http://localhost:4000   |
 | Dashboard   | `npm run dev:dashboard`| http://localhost:3000   |
 | Temps réel  | `npm run dev:realtime` | http://localhost:4100   |
+| Worker      | `npm run dev:worker`   | (pas de port)           |
 | Mobile      | `npm run dev:mobile`   | Expo (QR code)          |
 
 > Le service temps réel est **facultatif** : sans lui, tout fonctionne, il manque
@@ -82,7 +83,31 @@ npm run test:excursions  --workspace backend   # places, concurrence, restitutio
 npm run test:reviews     --workspace backend   # anti faux avis, modération, favoris
 npm run test:notifications --workspace backend # émission, cloisonnement, diffusion
 npm run test:realtime    --workspace realtime  # authentification, salles, cloisonnement
+npm run test:worker      --workspace worker    # cache, débit, files, idempotence
 ```
+
+`test:worker` exige Redis, le backend **et** le worker démarrés. Il vérifie ce
+que les autres suites ne voient pas : qu'une valeur écrite directement dans
+Redis est bien servie par l'API (donc que le cache est réellement branché),
+qu'une rafale au-delà du quota reçoit un 429 avec `Retry-After`, et qu'un rappel
+déclenché deux fois n'envoie qu'un seul email.
+
+## Redis en local
+
+```bash
+docker run -d --name tourism-redis -p 6379:6379 --restart unless-stopped   redis:7-alpine redis-server --appendonly yes --requirepass devredis
+```
+
+Le mot de passe est défini **dès le développement**, à dessein : un Redis local
+sans authentification laisserait passer en production un code qui n'a jamais été
+exercé avec `AUTH`, et l'erreur n'apparaîtrait qu'au déploiement.
+
+`REDIS_URL=redis://:devredis@127.0.0.1:6379` dans `backend/.env.local`,
+`realtime/.env` et `worker/.env` — avec le **même** `REDIS_KEY_PREFIX` partout :
+il nomme les clés, les files et le canal pub/sub.
+
+Tout fonctionne sans Redis. Le supprimer est d'ailleurs un bon test : rien ne
+doit tomber, seules la fraîcheur et la fiabilité de livraison se dégradent.
 
 `test:realtime` exige le backend **et** le service temps réel démarrés. Son
 assertion centrale : un événement destiné à un compte ne fuite jamais vers un

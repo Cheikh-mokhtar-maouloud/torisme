@@ -198,6 +198,95 @@ retour est sans risque.
 
 ---
 
+# Phase 13 — Redis, files et worker
+
+## Où héberger Redis
+
+| Option           | Quand |
+| ---------------- | ----- |
+| Upstash          | Serverless : facturé à la commande, aucune instance à maintenir. Le choix par défaut tant que le backend est sur Vercel. |
+| Redis Cloud      | Trafic soutenu, où la facturation à la commande devient plus chère qu'une instance. |
+| Conteneur du VPS | À partir de la Phase 15, quand un serveur existe déjà. |
+
+Avec un fournisseur géré, l'URL est en `rediss://` (TLS). L'oublier donne une
+erreur de protocole difficile à rattacher à sa cause.
+
+## Variables à ajouter
+
+Backend :
+
+```
+REDIS_URL=rediss://...
+REDIS_KEY_PREFIX=tourism        # distinct par environnement
+CACHE_TTL_SECONDS=60
+INTERNAL_API_SECRET=<32 octets>
+```
+
+Service temps réel — **le même** `REDIS_KEY_PREFIX`, sans quoi il s'abonne à un
+canal que personne n'alimente :
+
+```
+REDIS_URL=rediss://...
+REDIS_KEY_PREFIX=tourism
+```
+
+Worker :
+
+```
+REDIS_URL=rediss://...
+REDIS_KEY_PREFIX=tourism
+BACKEND_URL=https://api.exemple.mr
+INTERNAL_API_SECRET=<identique au backend>
+```
+
+> Le préfixe isole les environnements. `staging` et `production` peuvent partager
+> une instance Redis, mais avec un préfixe commun `staging` recevrait les
+> événements de `production` — donc de vraies notifications poussées vers des
+> appareils de test.
+
+## Où héberger le worker
+
+Mêmes contraintes que le service temps réel : un processus **de longue durée**,
+impossible sur Vercel. Render, Railway, Fly, ou le VPS de la Phase 15.
+
+Il n'expose aucun port et ne reçoit aucun trafic entrant : il ne lui faut donc ni
+domaine, ni certificat, ni règle d'entrée dans le pare-feu — seulement un accès
+sortant vers Redis et vers l'API.
+
+Une seule instance suffit. BullMQ en supporte plusieurs, mais rien ne le justifie
+avant que le volume d'emails ne devienne le facteur limitant.
+
+## Vérifications
+
+```bash
+npm run verify:deployment https://api.exemple.mr https://admin.exemple.mr
+```
+
+Contrôle notamment que Redis est configuré et joignable, que les réponses
+portent un quota de débit, et que `/api/internal/*` refuse un appel non
+authentifié.
+
+Puis, worker démarré :
+
+```bash
+npm run test:worker --workspace worker
+```
+
+## Si Redis tombe
+
+Rien ne s'arrête. Le cache devient transparent, la limitation retombe sur un
+compteur par instance, les emails repartent en envoi direct, le temps réel
+repasse par HTTP. `/api/health?deep=true` rapporte `redis.reachable: false`
+**sans** dégrader le statut global : une panne de cache ne doit jamais faire
+retirer une instance saine du pool.
+
+Ce qui est réellement perdu : les réessais d'email et les rappels différés. Les
+rappels déjà programmés sont dans Redis — si l'instance est recréée vide, ils ne
+partiront pas. Les réservations, elles, ne sont pas affectées.
+
+Après une purge ou un redémarrage sans persistance, le worker réenregistre son
+planning d'entretien de lui-même, dans un délai de quinze minutes.
+
 # Phases suivantes
 
 ## Phase 15 — Migration vers un VPS

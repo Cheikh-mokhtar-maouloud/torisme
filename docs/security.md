@@ -96,19 +96,85 @@ Appliqués par `backend/next.config.ts` (Phase 1) :
 Liste blanche explicite via `CORS_ORIGINS`. Jamais `*` sur une route authentifiée —
 un joker combiné aux credentials annule la protection d'origine.
 
-## Limitation de débit (Phase 14)
+## Limitation de débit (Phase 13 ✅)
 
-| Route                        | Limite indicative        |
-| ---------------------------- | ------------------------ |
-| `POST /api/auth/login`       | 5 / 15 min / IP + email  |
-| `POST /api/auth/register`    | 3 / heure / IP           |
-| `POST /api/auth/forgot-password` | 3 / heure / email    |
-| API en lecture               | 100 / min / IP           |
-| Écritures authentifiées      | 30 / min / utilisateur   |
+| Famille                                                    | Limite   | Clé de comptage |
+| ---------------------------------------------------------- | -------- | --------------- |
+| Authentification (connexion, inscription, mot de passe oublié) | 20 / min | compte ou IP |
+| Écritures authentifiées                                    | 120 / min | compte ou IP   |
+| Lecture publique                                           | 300 / min | compte ou IP   |
+| `GET /api/health`                                          | aucune    | —              |
 
-Le compteur devra vivre dans Redis, pas en mémoire de processus : avec plusieurs
-instances derrière un load balancer, un compteur local multiplie la limite réelle par
-le nombre d'instances.
+**Appliquée par défaut**, dans `withRoute`, jamais souscrite route par route :
+une protection optionnelle ne protège que ce dont on s'est souvenu, et la route
+ajoutée dans six mois serait exposée sans que rien ne le signale.
+
+Le point de santé en est volontairement exempt : c'est un load balancer qui
+l'interroge, plusieurs fois par minute et par instance. Le limiter ferait
+retirer du pool des instances saines — la sonde provoquerait la panne qu'elle
+surveille.
+
+### Le compte prime sur l'adresse IP
+
+Une requête authentifiée est comptée sous `user:<id>`, jamais sous son adresse.
+Compter uniquement par IP pénalise le partage d'adresse, qui est la norme et non
+l'exception : NAT d'un opérateur mobile mauritanien, Wi-Fi d'un hôtel, réseau
+d'une agence de voyage. Tous ces utilisateurs se partageraient un seul quota, et
+le plus actif couperait l'accès aux autres.
+
+Le jeton est vérifié **cryptographiquement** avant d'en tirer l'identifiant. Se
+contenter de lire son contenu laisserait n'importe qui forger un identifiant
+différent à chaque requête, donc obtenir un quota neuf à volonté.
+
+### Ce que la limitation ne remplace pas
+
+Le **verrouillage de compte** (`failedLoginAttempts` / `lockedUntil`, Phase 8)
+reste en base et n'a pas été déplacé. Un contrôle de sécurité stocké dans
+MongoDB survit à un redémarrage de Redis ; un compteur en cache s'efface, et un
+attaquant n'aurait qu'à attendre une purge pour repartir de zéro.
+
+La limitation protège l'infrastructure contre le volume, le verrouillage protège
+un compte précis. Les deux sont complémentaires, et les fusionner affaiblirait
+le second.
+
+### Dégradation
+
+Si Redis est injoignable, **la requête est autorisée**. La limitation protège
+contre l'abus, elle n'est pas un contrôle d'accès : refuser tout le trafic parce
+que le compteur est absent transformerait une panne de cache en interruption de
+service — exactement ce qu'un attaquant chercherait à provoquer.
+
+Sans `REDIS_URL`, le repli est un compteur en mémoire, valable pour la seule
+instance courante. C'est un filet, pas une protection : `verify:deployment`
+échoue si la production n'a pas de Redis.
+
+## Secrets partagés entre services
+
+Trois secrets distincts, jamais interchangeables :
+
+| Secret                    | Relation de confiance          |
+| ------------------------- | ------------------------------ |
+| `JWT_SECRET`              | backend ↔ clients              |
+| `REALTIME_PUBLISH_SECRET` | backend ↔ service temps réel   |
+| `INTERNAL_API_SECRET`     | worker ↔ routes internes       |
+
+Les confondre transformerait la compromission de l'un en compromission des
+autres : un jeton client volé deviendrait un droit de diffusion, ou un droit de
+déclencher des envois d'emails.
+
+Les trois sont comparés en **temps constant**. Une égalité de chaînes s'arrête au
+premier caractère différent et révèle, par sa durée, combien de caractères sont
+déjà corrects.
+
+### Ce que le worker ne détient pas
+
+Le worker n'a **ni `MONGODB_URI` ni la clé du fournisseur d'emails**. Il appelle
+`/api/internal/*`, et c'est le backend qui détient les secrets. Compromettre le
+worker ne donne donc accès ni aux données ni au compte d'envoi — seulement au
+droit de déclencher des traitements que le backend valide de toute façon.
+
+Sans `INTERNAL_API_SECRET`, les routes internes refusent **tout** appel : le
+défaut d'une variable absente doit toujours être le refus.
 
 ## Paiement (Phase 23)
 

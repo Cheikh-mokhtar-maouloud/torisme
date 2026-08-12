@@ -12,6 +12,7 @@ tourism-platform/
 ├── dashboard/   Application Next.js — administration
 ├── backend/     API REST Next.js (route handlers) + MongoDB
 ├── realtime/    Service Socket.IO — diffusion temps réel
+├── worker/      Worker BullMQ — emails, rappels, entretien
 ├── shared/      Types, constantes et schémas Zod communs
 └── docs/        Documentation
 ```
@@ -66,8 +67,8 @@ L'architecture cible est construite par étapes, pas d'emblée :
 | Étape          | Infrastructure                                       | Phase |
 | -------------- | ---------------------------------------------------- | ----- |
 | Départ         | Vercel (backend + dashboard) + MongoDB Atlas         | 4     |
-| Temps réel     | Socket.IO sur serveur Node dédié                     | 12    |
-| Asynchrone     | Redis + BullMQ, workers séparés de l'API             | 13    |
+| Temps réel     | Socket.IO sur serveur Node dédié                     | 12 ✅ |
+| Asynchrone     | Redis + BullMQ, workers séparés de l'API             | 13 ✅ |
 | Serveur propre | VPS Ubuntu + Docker + Nginx                          | 15    |
 | Échelle        | Cloudflare (CDN/WAF) + load balancer + N instances   | 16    |
 
@@ -144,6 +145,64 @@ mise à jour instantanée. Côté client, un événement ne fait qu'**invalider 
 cache** : les données sont ensuite rechargées depuis l'API, seule source de
 vérité. Écrire la charge utile directement dans le cache ferait diverger
 l'affichage au moindre champ oublié dans l'événement.
+
+## Redis, files et travail différé (Phase 13)
+
+```
+                    ┌──────────────┐
+   dépose ────────► │    Redis     │ ◄──── consomme
+                    │ files+pubsub │
+   backend          └──────────────┘          worker
+      │                    ▲                     │
+      │  cache, débit ─────┘                     │
+      │                                          │
+      └──────────  /api/internal/*  ◄────────────┘
+```
+
+**Rien n'est obligatoire.** Sans `REDIS_URL` : le cache devient transparent, les
+files s'exécutent en ligne, la limitation retombe sur un compteur mémoire, le
+temps réel repasse par HTTP. L'application entière continue de fonctionner —
+c'est la même règle qu'en Phase 12, et elle est vérifiée par le fait que tout le
+développement d'avant cette phase se faisait ainsi.
+
+### Pourquoi un workspace `worker/` distinct de `realtime/`
+
+Profils de charge différents, et un traitement d'email qui plante ne doit pas
+couper les sockets ouverts. En Phase 15 ce seront deux processus PM2 sur le même
+VPS : la séparation ne coûte rien à ce moment-là, alors que les fusionner
+maintenant serait difficile à défaire.
+
+### Le worker ne contient aucune logique métier
+
+Chaque tâche se résout en un appel à `/api/internal/*`. C'est la règle posée en
+Phase 1 — la logique vit à un seul endroit — et elle vaut ici autant que pour le
+mobile ou le dashboard. Le worker n'apporte que ce qu'un backend serverless ne
+sait pas faire : **réessayer, différer, répéter**.
+
+Conséquence directe : le worker ne détient ni l'URI MongoDB ni la clé du
+fournisseur d'emails. Voir `security.md`.
+
+### Ce que Redis ne remplace pas
+
+| Mécanisme existant                    | Pourquoi il reste en MongoDB |
+| ------------------------------------- | ---------------------------- |
+| Verrou de réservation (`room-lock`)    | Cœur métier ; le faire dépendre d'un service déclaré facultatif serait une régression |
+| Verrouillage de compte (Phase 8)       | Un contrôle de sécurité doit survivre à une purge de cache |
+| Purge des sessions et verrous expirés  | Index TTL : MongoDB le fait déjà |
+| Idempotence des rappels (`reminderSentAt`) | Une file garantit *au moins* une livraison, jamais exactement une |
+
+Ce dernier point est le plus important de la phase. Le garde-fou contre le
+double envoi **ne peut pas** vivre dans la file : il est en base, sous forme
+d'une mise à jour conditionnelle, seul endroit où deux workers concurrents se
+départagent réellement.
+
+### Ce que l'entretien périodique a révélé
+
+`COMPLETED` existait dans les énumérations depuis la Phase 2 mais n'était
+**jamais posé** : un séjour terminé restait « Confirmé » indéfiniment, une
+excursion passée restait « Programmée ». C'est le premier traitement de la
+plateforme sans déclencheur utilisateur — il lui fallait un ordonnanceur, et
+c'est pourquoi il arrive seulement maintenant.
 
 ## Contrat d'API
 

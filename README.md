@@ -12,6 +12,7 @@ Marché initial : la **Mauritanie**, avec une architecture multi-pays.
 | `dashboard/` | Administration                        | Next.js · TypeScript · Tailwind CSS v4  |
 | `backend/`   | API REST unique                       | Next.js route handlers · MongoDB        |
 | `realtime/`  | Diffusion temps réel                  | Node · Socket.IO                        |
+| `worker/`    | Traitements asynchrones               | Node · BullMQ · Redis                   |
 | `shared/`    | Types, constantes, validation Zod     | TypeScript                              |
 | `docs/`      | Documentation                         | Markdown                                |
 
@@ -31,6 +32,7 @@ cp mobile/.env.example    mobile/.env.local
 npm run dev:backend                # http://localhost:4000
 npm run dev:dashboard              # http://localhost:3000
 npm run dev:realtime               # :4100 (facultatif)
+npm run dev:worker                 # files BullMQ (facultatif)
 npm run dev:mobile                 # Expo
 
 npm run seed  --workspace backend    # données de développement
@@ -77,7 +79,8 @@ npm run build          # build de production backend + dashboard
 | 10    | Favoris, avis et modération          | ✅ terminée |
 | 11    | Notifications et emails              | ✅ terminée |
 | 12    | Temps réel (Socket.IO)               | ✅ terminée |
-| 13–16 | Redis et files, sécurité, migration serveur, mise à l'échelle | à venir |
+| 13    | Redis, files BullMQ, limitation de débit | ✅ terminée |
+| 14–16 | Sécurité de production, migration serveur, mise à l'échelle | à venir |
 
 
 ## Licence

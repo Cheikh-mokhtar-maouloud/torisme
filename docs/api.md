@@ -290,8 +290,34 @@ Les notifications sont émises automatiquement par les événements métier :
 échouer parce que le serveur d'emails est indisponible : l'opération métier a
 réussi, seule l'information n'est pas partie. L'échec est journalisé.
 
-Corollaire assumé : une notification peut être perdue. La livraison durable —
-file d'attente, réessais, lettres mortes — arrive en Phase 13.
+Depuis la Phase 13, l'email est **déposé en file** : BullMQ le réessaie cinq
+fois avec un délai croissant, et un échec définitif reste consultable dans la
+file plutôt que de disparaître dans les journaux. La notification in-app, elle,
+est enregistrée avant toute diffusion : un service temps réel arrêté ne fait
+perdre que l'immédiateté.
+
+Sans Redis, le repli est l'envoi direct — le comportement d'avant cette phase,
+donc aucune régression.
+
+#### Routes internes
+
+`/api/internal/*` n'est pas destiné aux clients. Ces routes sont appelées par le
+worker et exigent l'en-tête `X-Internal-Secret`, comparé en temps constant.
+Absent ou faux : `401`. `INTERNAL_API_SECRET` non configuré : `403` — les routes
+sont fermées, pas ouvertes.
+
+| Route | Rôle |
+| ----- | ---- |
+| `POST /api/internal/mail` | Remet un email au fournisseur. Propage l'erreur : c'est le code HTTP qui indique au worker s'il doit réessayer. |
+| `POST /api/internal/reminders` | Envoie un rappel d'excursion. Répond `200` même sans envoi (`sent: false`) — réservation annulée ou rappel déjà parti ne sont pas des échecs. |
+| `POST /api/internal/maintenance` | Fait avancer les statuts périmés. Idempotent. |
+
+#### Limitation de débit
+
+Toute réponse porte `X-RateLimit-Limit` et `X-RateLimit-Remaining`. Un
+dépassement renvoie `429` avec le code `RATE_LIMITED` et un en-tête
+`Retry-After` en secondes. Voir `security.md` pour les barèmes et la clé de
+comptage.
 
 `POST /api/admin/notifications` sans `userIds` diffuse à **tous les comptes
 actifs**. Le dashboard impose un choix explicite de portée : une diffusion

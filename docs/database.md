@@ -171,3 +171,22 @@ avant la Phase 8 : Atlas, ou une configuration locale en replica set à un nœud
 - Les fichiers image (seulement leur URL et leurs métadonnées) — voir `docs/security.md`
 - Les mots de passe en clair — uniquement un hash bcrypt
 - Les secrets d'application
+
+## Champs servant de garde-fou de concurrence
+
+Certains champs n'existent pas pour être affichés, mais pour arbitrer entre deux
+écritures simultanées. Les modifier ou les indexer sans le savoir casserait une
+garantie.
+
+| Champ | Collection | Ce qu'il empêche |
+| ----- | ---------- | ---------------- |
+| `roomId` unique | `bookingLocks` | Deux réservations concurrentes sur les mêmes dates (Phase 8) |
+| `availableSeats` + `$inc` conditionnel | `excursions` | La survente de places (Phase 9) |
+| `failedLoginAttempts` / `lockedUntil` | `users` | La force brute sur un compte (Phase 8) |
+| `reminderSentAt` | `excursionBookings` | Le double envoi d'un rappel (Phase 13) |
+
+`reminderSentAt` mérite un mot. Il est posé par une mise à jour **conditionnée à
+son absence**, et c'est le résultat de cette écriture qui décide de l'envoi. Se
+fier au « une tâche, une exécution » de la file serait une erreur : une file
+garantit *au moins* une livraison, jamais exactement une. Le départage doit donc
+avoir lieu en base, seul endroit où deux workers concurrents se rencontrent.
