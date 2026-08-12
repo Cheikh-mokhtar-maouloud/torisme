@@ -68,6 +68,30 @@ const envSchema = z.object({
   REALTIME_URL: z.string().url().optional(),
   /** Secret partagé avec le service temps réel. Distinct de `JWT_SECRET`. */
   REALTIME_PUBLISH_SECRET: z.string().min(32).optional(),
+
+  /* --- Redis : cache, files, limitation de débit --------------------------- */
+  /**
+   * Connexion Redis. **Absente, tout continue de fonctionner** : le cache
+   * devient transparent, les files s'exécutent en ligne, la limitation de débit
+   * retombe sur un compteur mémoire. C'est le cas par défaut en développement.
+   */
+  REDIS_URL: z.string().optional(),
+  /**
+   * Préfixe de toutes les clés. Il permet de partager une instance Redis entre
+   * plusieurs environnements sans qu'un `staging` puisse lire ou invalider le
+   * cache de `production`.
+   */
+  REDIS_KEY_PREFIX: z.string().min(1).default('tourism'),
+  /** Durée de vie par défaut des entrées de cache, en secondes. */
+  CACHE_TTL_SECONDS: z.coerce.number().int().min(1).max(86_400).default(60),
+
+  /* --- Appels internes (worker) -------------------------------------------- */
+  /**
+   * Secret partagé avec le worker. Distinct de `JWT_SECRET` et de
+   * `REALTIME_PUBLISH_SECRET`. Absent, les routes `/api/internal/*` refusent
+   * tout appel — le défaut sûr.
+   */
+  INTERNAL_API_SECRET: z.string().min(32).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -1,5 +1,6 @@
 import { ContentStatus, ExcursionStatus, UserRole } from '@tourism/shared/constants';
 
+import { CacheNamespace, cached } from '@/lib/cache';
 import { Attraction, Excursion, Hotel, Restaurant, Room, User } from '@/models';
 
 export interface PlatformStats {
@@ -16,11 +17,18 @@ export interface PlatformStats {
  *
  * Toutes les requêtes partent en parallèle : elles sont indépendantes, et les
  * enchaîner multiplierait la latence de la page par le nombre de compteurs.
- * Ce sont des `countDocuments` couverts par les index existants ; le jour où ce
- * calcul devient coûteux, il ira en cache Redis (Phase 13) plutôt qu'en requête
- * à chaque affichage.
+ *
+ * Le résultat est mis en cache une minute. Quatorze `countDocuments` sont
+ * exécutés à chaque affichage de l'accueil du dashboard, page qu'un
+ * administrateur recharge sans arrêt ; ce sont des compteurs indicatifs, dont
+ * l'obsolescence d'une minute n'a aucune conséquence — le critère qui décide
+ * de ce qui a le droit d'entrer dans le cache.
  */
 export async function getPlatformStats(): Promise<PlatformStats> {
+  return cached(CacheNamespace.STATS, 'platform', computePlatformStats, 60);
+}
+
+async function computePlatformStats(): Promise<PlatformStats> {
   const [
     totalUsers,
     adminUsers,

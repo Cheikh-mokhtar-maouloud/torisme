@@ -5,12 +5,40 @@ import type {
   UpdateCategoryInput,
 } from '@tourism/shared/validation';
 
+import { CacheNamespace, cached, invalidate } from '@/lib/cache';
 import { HttpError } from '@/lib/errors';
 import { paginateQuery, type PaginatedResult } from '@/lib/query';
 import { serializeDocument } from '@/lib/serialize';
 import { Attraction, Category, Restaurant } from '@/models';
 
+/**
+ * Liste les catégories.
+ *
+ * Mise en cache : elles changent quelques fois par an et sont lues à chaque
+ * ouverture d'un écran de filtres, côté mobile comme dashboard.
+ *
+ * La clé inclut **`isAdmin`**. Ce point est le plus important de toute la
+ * couche de cache : l'administrateur voit aussi les catégories désactivées.
+ * Une clé qui l'ignorerait servirait au public la réponse mise en cache par un
+ * administrateur, exposant du contenu volontairement masqué — la fuite
+ * classique des caches mal découpés.
+ */
 export async function listCategories(
+  query: CategoryListQuery,
+  isAdmin: boolean,
+): Promise<PaginatedResult<CategoryDto>> {
+  const key = [
+    isAdmin ? 'admin' : 'public',
+    query.appliesTo ?? 'all',
+    String(query.isActive),
+    query.page,
+    query.limit,
+  ].join(':');
+
+  return cached(CacheNamespace.CATEGORY, key, () => listCategoriesFromDb(query, isAdmin), 300);
+}
+
+async function listCategoriesFromDb(
   query: CategoryListQuery,
   isAdmin: boolean,
 ): Promise<PaginatedResult<CategoryDto>> {
@@ -42,6 +70,7 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
   }
 
   const created = await Category.create(input);
+  await invalidate(CacheNamespace.CATEGORY);
   return serializeDocument<CategoryDto>(created.toObject());
 }
 
@@ -53,6 +82,15 @@ export async function updateCategory(id: string, input: UpdateCategoryInput): Pr
   ).lean();
 
   if (!updated) throw HttpError.notFound('Catégorie introuvable');
+
+  /*
+   * Invalidation **attendue**, contrairement à l'écriture dans le cache. Rendre
+   * la main avant la purge laisserait une fenêtre où l'administrateur, revenant
+   * à la liste, verrait encore l'ancienne valeur — et conclurait que sa
+   * modification n'a pas été enregistrée.
+   */
+  await invalidate(CacheNamespace.CATEGORY);
+
   return serializeDocument<CategoryDto>(updated);
 }
 
@@ -76,4 +114,6 @@ export async function deleteCategory(id: string): Promise<void> {
 
   const deleted = await Category.findByIdAndDelete(id).lean();
   if (!deleted) throw HttpError.notFound('Catégorie introuvable');
+
+  await invalidate(CacheNamespace.CATEGORY);
 }
