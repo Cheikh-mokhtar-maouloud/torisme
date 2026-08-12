@@ -28,10 +28,11 @@ export function fail(
   message: string,
   status: number,
   fields?: ApiError['fields'],
+  headers?: Record<string, string>,
 ) {
   return NextResponse.json<ApiResponse<never>>(
     { success: false, error: { code, message, ...(fields ? { fields } : {}) } },
-    { status },
+    { status, ...(headers ? { headers } : {}) },
   );
 }
 
