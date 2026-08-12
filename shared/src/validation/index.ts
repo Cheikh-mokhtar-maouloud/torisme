@@ -5,6 +5,7 @@ export * from './auth';
 export * from './booking';
 export * from './review';
 export * from './favorite';
+export * from './notification';
 export * from './category';
 export * from './user';
 export * from './hotel';
