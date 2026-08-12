@@ -48,6 +48,17 @@ const envSchema = z.object({
    * l'application mobile — sur un autre hôte — ne saurait pas résoudre.
    */
   PUBLIC_BASE_URL: z.string().url().default('http://localhost:4000'),
+
+  /* --- Emails -------------------------------------------------------------- */
+  MAIL_PROVIDER: z.enum(['console', 'resend']).default('console'),
+  MAIL_API_KEY: z.string().optional(),
+  /** Expéditeur, au format « Nom <adresse@domaine> ». Le domaine doit être vérifié. */
+  MAIL_FROM: z.string().optional(),
+  /**
+   * Racine des liens envoyés par email (réinitialisation, confirmation).
+   * Pointe vers le dashboard ou le site public, pas vers l'API.
+   */
+  APP_PUBLIC_URL: z.string().url().default('http://localhost:3000'),
 });
 
 export type Env = z.infer<typeof envSchema>;

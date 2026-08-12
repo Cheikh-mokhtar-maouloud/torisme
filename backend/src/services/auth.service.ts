@@ -13,6 +13,9 @@ import { signAccessToken } from '@/lib/auth/jwt';
 import { fakePasswordCheck, hashPassword, verifyPassword } from '@/lib/auth/password';
 import { HttpError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
+import { mailer } from '@/lib/mail';
+import { passwordResetEmail, welcomeEmail } from '@/lib/mail/templates';
+import { env } from '@/config/env';
 import { serializeDocument } from '@/lib/serialize';
 import { User } from '@/models';
 
@@ -64,11 +67,34 @@ export async function register(input: RegisterInput, userAgent?: string): Promis
 
   const userId = String(created._id);
 
+  // L'échec d'envoi ne doit pas faire échouer l'inscription : le compte existe,
+  // l'utilisateur est connecté, seul le message de bienvenue manque.
+  void sendQuietly(welcomeEmail(input.email, input.fullName));
+
   return {
     user: serializeDocument<UserDto>(created.toObject()),
     token: await signAccessToken({ sub: userId, role: UserRole.USER, email: input.email }),
     refreshToken: (await issueRefreshToken(userId, userAgent)).token,
   };
+}
+
+/**
+ * Envoi d'email détaché.
+ *
+ * Les parcours d'authentification ne doivent jamais dépendre de la
+ * disponibilité du serveur d'emails : l'échec est journalisé, pas propagé.
+ */
+async function sendQuietly(
+  message: Parameters<ReturnType<typeof mailer>['send']>[0],
+): Promise<void> {
+  try {
+    await mailer().send(message);
+  } catch (error) {
+    logger.error('email non envoyé', {
+      subject: message.subject,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 export async function login(input: LoginInput, userAgent?: string): Promise<AuthResult> {
@@ -233,6 +259,16 @@ export async function requestPasswordReset(email: string): Promise<string | null
       },
     },
   );
+
+  /*
+   * Le lien pointe vers l'application publique, pas vers l'API : c'est une page
+   * qui doit s'ouvrir dans un navigateur, avec un formulaire.
+   *
+   * Le jeton voyage en clair dans l'URL — c'est sa raison d'être — d'où sa durée
+   * d'une heure et son usage unique.
+   */
+  const resetUrl = `${env().APP_PUBLIC_URL}/reset-password?token=${encodeURIComponent(token)}`;
+  await sendQuietly(passwordResetEmail(email, resetUrl));
 
   return token;
 }
