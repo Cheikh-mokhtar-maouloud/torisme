@@ -59,6 +59,15 @@ const envSchema = z.object({
    * Pointe vers le dashboard ou le site public, pas vers l'API.
    */
   APP_PUBLIC_URL: z.string().url().default('http://localhost:3000'),
+
+  /* --- Temps réel ---------------------------------------------------------- */
+  /**
+   * Racine du service Socket.IO. Absente, l'application fonctionne normalement,
+   * simplement sans mise à jour instantanée — le temps réel est un confort.
+   */
+  REALTIME_URL: z.string().url().optional(),
+  /** Secret partagé avec le service temps réel. Distinct de `JWT_SECRET`. */
+  REALTIME_PUBLISH_SECRET: z.string().min(32).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

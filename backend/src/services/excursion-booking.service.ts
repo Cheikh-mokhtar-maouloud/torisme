@@ -5,6 +5,7 @@ import {
   ErrorCode,
   ExcursionStatus,
   NotificationType,
+  SOCKET_EVENTS,
   UserRole,
 } from '@tourism/shared/constants';
 import type { ExcursionBooking as ExcursionBookingDto } from '@tourism/shared/types';
@@ -16,6 +17,7 @@ import type {
 import { HttpError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import { escapeRegex, paginateQuery, type PaginatedResult } from '@/lib/query';
+import { publish } from '@/lib/realtime';
 import { serializeDocument } from '@/lib/serialize';
 import { bookingCancelledEmail, bookingConfirmedEmail } from '@/lib/mail/templates';
 import { Excursion, ExcursionBooking, User } from '@/models';
@@ -91,6 +93,19 @@ export async function createExcursionBooking(
         { $set: { status: ExcursionStatus.FULL } },
       );
     }
+
+    /*
+     * Les places restantes sont la donnée la plus volatile de la plateforme :
+     * c'est précisément celle qu'un utilisateur regarde en hésitant. La
+     * diffusion vise les administrateurs — le dashboard suit ainsi le
+     * remplissage — tandis que les clients rafraîchissent leur fiche à
+     * l'ouverture.
+     */
+    void publish(
+      SOCKET_EVENTS.EXCURSION_SEATS_UPDATED,
+      { kind: 'admins' },
+      { excursionId: String(excursion._id), availableSeats: remaining },
+    );
 
     void notifyAdmins(
       'Nouvelle réservation d’excursion',
@@ -221,6 +236,12 @@ export async function cancelExcursionBooking(
 
   await releaseSeats(String(booking.excursionId), booking.seats);
 
+  void publish(
+    SOCKET_EVENTS.BOOKING_UPDATED,
+    { kind: 'user', userId: String(cancelled.userId) },
+    { excursionBookingId: String(cancelled._id), status: cancelled.status },
+  );
+
   const description = await describeExcursionBooking(cancelled);
 
   void notify({
@@ -311,6 +332,12 @@ export async function confirmExcursionBooking(id: string): Promise<ExcursionBook
   if (!confirmed) throw HttpError.conflict('Seule une réservation en attente peut être confirmée');
 
   const description = await describeExcursionBooking(confirmed);
+
+  void publish(
+    SOCKET_EVENTS.BOOKING_UPDATED,
+    { kind: 'user', userId: String(confirmed.userId) },
+    { excursionBookingId: String(confirmed._id), status: confirmed.status },
+  );
 
   void notify({
     userId: String(confirmed.userId),

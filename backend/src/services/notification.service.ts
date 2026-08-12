@@ -1,4 +1,4 @@
-import { NotificationType, UserRole } from '@tourism/shared/constants';
+import { NotificationType, SOCKET_EVENTS, UserRole } from '@tourism/shared/constants';
 import type { Notification as NotificationDto } from '@tourism/shared/types';
 import type { BroadcastNotificationInput, NotificationListQuery } from '@tourism/shared/validation';
 
@@ -7,6 +7,7 @@ import { logger } from '@/lib/logger';
 import { mailer } from '@/lib/mail';
 import type { MailMessage } from '@/lib/mail';
 import { paginateQuery, type PaginatedResult } from '@/lib/query';
+import { publish } from '@/lib/realtime';
 import { serializeDocument } from '@/lib/serialize';
 import { Notification, User } from '@/models';
 
@@ -80,13 +81,30 @@ interface NotifyInput {
  */
 export async function notify(input: NotifyInput): Promise<void> {
   try {
-    await Notification.create({
+    const created = await Notification.create({
       userId: input.userId,
       type: input.type,
       title: input.title,
       body: input.body,
       ...(input.data ? { data: input.data } : {}),
     });
+
+    /*
+     * Diffusion instantanée vers l'appareil de l'utilisateur, s'il est connecté.
+     * La notification est déjà enregistrée : un service temps réel arrêté ne
+     * fait perdre que l'immédiateté, pas l'information.
+     */
+    void publish(
+      SOCKET_EVENTS.NOTIFICATION_NEW,
+      { kind: 'user', userId: input.userId },
+      {
+        id: String(created._id),
+        type: input.type,
+        title: input.title,
+        body: input.body,
+        ...(input.data ?? {}),
+      },
+    );
   } catch (error) {
     logger.error('notification in-app non enregistrée', {
       userId: input.userId,
@@ -186,4 +204,8 @@ export async function notifyAdmins(
       }),
     ),
   );
+
+  // La salle « admins » permet au dashboard de réagir sans que chaque
+  // administrateur ait à être identifié individuellement.
+  void publish(SOCKET_EVENTS.ADMIN_ACTIVITY, { kind: 'admins' }, { title, body, ...(data ?? {}) });
 }

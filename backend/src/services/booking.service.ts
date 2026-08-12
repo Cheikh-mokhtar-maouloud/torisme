@@ -5,6 +5,7 @@ import {
   ContentStatus,
   ErrorCode,
   NotificationType,
+  SOCKET_EVENTS,
   UserRole,
 } from '@tourism/shared/constants';
 import type { Booking as BookingDto } from '@tourism/shared/types';
@@ -17,6 +18,7 @@ import {
 
 import { HttpError } from '@/lib/errors';
 import { escapeRegex, paginateQuery, type PaginatedResult } from '@/lib/query';
+import { publish } from '@/lib/realtime';
 import { withRoomLock } from '@/lib/room-lock';
 import { bookingCancelledEmail, bookingConfirmedEmail } from '@/lib/mail/templates';
 import { serializeDocument } from '@/lib/serialize';
@@ -296,6 +298,14 @@ export async function cancelBooking(
 
   const description = await describeBooking(updated);
 
+  // Le statut vient de changer : les écrans ouverts sur cette réservation
+  // doivent le refléter sans que l'utilisateur ait à tirer pour rafraîchir.
+  void publish(
+    SOCKET_EVENTS.BOOKING_UPDATED,
+    { kind: 'user', userId: String(updated.userId) },
+    { bookingId: String(updated._id), status: updated.status },
+  );
+
   void notify({
     userId: String(updated.userId),
     type: NotificationType.BOOKING_CANCELLED,
@@ -327,6 +337,12 @@ export async function confirmBooking(id: string): Promise<BookingDto> {
   if (!updated) throw HttpError.conflict('Seule une réservation en attente peut être confirmée');
 
   const description = await describeBooking(updated);
+
+  void publish(
+    SOCKET_EVENTS.BOOKING_UPDATED,
+    { kind: 'user', userId: String(updated.userId) },
+    { bookingId: String(updated._id), status: updated.status },
+  );
 
   void notify({
     userId: String(updated.userId),
