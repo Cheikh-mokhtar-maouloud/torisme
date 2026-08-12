@@ -148,6 +148,20 @@ Vercel — d'où la limite applicative de 4 Mo. Si des images plus lourdes devie
 nécessaires, le téléversement signé redevient la voie à suivre, et il faudra alors
 vérifier l'asset auprès du fournisseur après coup pour retrouver la garantie perdue.
 
+## Contenus déposés par les utilisateurs (Phase 10 ✅)
+
+- **Avis modérés a priori** : rien ne s'affiche avant validation.
+- **Preuve de réservation** exigée sur les lieux réservables — la seule barrière
+  réellement efficace contre les faux avis, qu'ils viennent d'un concurrent ou de
+  l'établissement lui-même.
+- **Un avis par compte et par lieu**, garanti par un index unique et non par un
+  simple contrôle applicatif.
+- Le **signalement** ne masque jamais automatiquement : il ne fait que remonter
+  l'avis dans la file de modération. Un seuil automatique se retournerait en
+  outil de censure entre concurrents.
+- Un utilisateur ne peut supprimer que **ses propres** avis ; les favoris d'un
+  compte ne sont ni lisibles ni modifiables par un autre.
+
 ## Journalisation
 
 Ne jamais journaliser : mots de passe, jetons, en-têtes `Authorization`, cookies,

@@ -258,11 +258,51 @@ vider une sortie et bloquer tous les autres clients.
 | ------- | -------------------------------- | --------------------- |
 | GET     | `/api/reviews`                   | public (approuvés)    |
 | POST    | `/api/reviews`                   | user                  |
+| DELETE  | `/api/reviews/:id`               | auteur ou admin       |
+| PATCH   | `/api/reviews/:id/moderate`      | admin                 |
+| POST    | `/api/reviews/:id/report`        | user                  |
 | GET     | `/api/favorites`                 | user                  |
 | POST    | `/api/favorites`                 | user                  |
-| DELETE  | `/api/favorites/:id`             | propriétaire          |
-| GET     | `/api/notifications`             | user                  |
-| PATCH   | `/api/notifications/:id/read`    | propriétaire          |
+| DELETE  | `/api/favorites?targetType=…&targetId=…` | propriétaire  |
+| GET     | `/api/notifications`             | user (Phase 11)       |
+| PATCH   | `/api/notifications/:id/read`    | propriétaire (Phase 11) |
+
+#### Avis — règle anti faux avis
+
+| Type de lieu | Condition |
+| --- | --- |
+| `HOTEL`, `EXCURSION` | réservation **confirmée ou terminée** exigée |
+| `RESTAURANT`, `ATTRACTION` | ouvert, mais un seul avis par compte |
+
+Une demande en attente ne suffit pas : elle n'atteste de rien. L'identifiant de
+la réservation est conservé sur l'avis comme justificatif, et l'application
+affiche « Séjour vérifié ».
+
+Un index unique `(userId, targetType, targetId)` garantit l'unicité : un contrôle
+applicatif seul laisserait passer deux envois simultanés.
+
+**Modération a priori** : un avis naît `PENDING` et n'est visible qu'une fois
+approuvé. Plus exigeant en travail d'administration, mais aucun contenu
+diffamatoire ne s'affiche entre sa publication et son signalement. `scope=me`
+permet à l'auteur de voir ses propres avis en attente.
+
+Approuver, rejeter ou supprimer **recalcule la note du lieu** par agrégation
+complète plutôt que par ajustement incrémental : une incohérence héritée d'un
+incident disparaît au recalcul suivant au lieu d'être perpétuée.
+
+**Signalement** : le compteur trie la file de modération, sans jamais masquer
+automatiquement. Un retrait déclenché par le nombre de signalements deviendrait
+vite un outil de censure entre concurrents.
+
+#### Favoris
+
+`POST` est **idempotent** : rajouter un favori existant le renvoie plutôt que
+d'échouer — l'utilisateur voulait que le lieu soit en favori, il l'est.
+
+`GET /api/favorites` renvoie chaque favori **enrichi de sa cible** (nom, ville,
+vignette, note, prix). Les cibles sont chargées par type, soit quatre requêtes au
+maximum quel que soit le nombre d'entrées, ce qui évite le N+1. Une fiche
+dépubliée est marquée `unavailable`, une fiche supprimée renvoie `target: null`.
 
 ## Règles d'autorisation
 

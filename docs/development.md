@@ -74,6 +74,7 @@ npm run test:auth        --workspace backend   # sessions, rotation, verrouillag
 npm run test:concurrency --workspace backend   # réservations simultanées
 npm run test:uploads     --workspace backend   # téléversement et validation
 npm run test:excursions  --workspace backend   # places, concurrence, restitution
+npm run test:reviews     --workspace backend   # anti faux avis, modération, favoris
 ```
 
 `test:concurrency` est celui qui compte le plus : il lance douze réservations
