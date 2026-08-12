@@ -2,10 +2,11 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { timingSafeEqual } from 'node:crypto';
 
 import { jwtVerify } from 'jose';
+import Redis from 'ioredis';
 import { Server, type Socket } from 'socket.io';
 import { z } from 'zod';
 
-import { SOCKET_EVENTS, SOCKET_ROOMS } from '@tourism/shared/constants';
+import { SOCKET_EVENTS, SOCKET_ROOMS, realtimeChannel } from '@tourism/shared/constants';
 
 import { loadConfig } from './config.js';
 
@@ -32,6 +33,8 @@ const publishSchema = z.object({
   ]),
   payload: z.record(z.string(), z.unknown()).default({}),
 });
+
+type PublishPayload = z.infer<typeof publishSchema>;
 
 /**
  * Comparaison à temps constant du secret de publication.
@@ -80,10 +83,10 @@ const httpServer = createServer((request: IncomingMessage, response: ServerRespo
 /**
  * Publication d'un événement par le backend.
  *
- * Transport volontairement simple : le backend est en serverless et ne peut pas
- * maintenir de connexion permanente vers ce service. La Phase 13 remplacera cet
- * appel HTTP par Redis pub/sub, ce qui permettra en outre de faire tourner
- * plusieurs instances de ce service.
+ * Second recours depuis la Phase 13 : le transport principal est désormais
+ * Redis pub/sub, qui atteint toutes les instances de ce service. Cette route
+ * reste en place pour les déploiements sans Redis, et parce qu'elle ne coûte
+ * rien tant qu'elle n'est pas appelée.
  */
 function handlePublish(request: IncomingMessage, response: ServerResponse): void {
   if (!isAuthorizedPublisher(request.headers['x-publish-secret'] as string | undefined)) {
@@ -112,16 +115,28 @@ function handlePublish(request: IncomingMessage, response: ServerResponse): void
       return;
     }
 
-    const { event, target, payload } = parsed.data;
-    const room = target.kind === 'user' ? SOCKET_ROOMS.user(target.userId) : SOCKET_ROOMS.admins;
-
-    io.to(room).emit(event, payload);
-
-    log('info', 'événement diffusé', { event, room });
+    const room = dispatch(parsed.data);
 
     response.writeHead(202, { 'Content-Type': 'application/json' });
     response.end(JSON.stringify({ emitted: true, room }));
   });
+}
+
+/**
+ * Diffuse un événement validé vers sa salle.
+ *
+ * Point d'entrée unique des deux transports — HTTP et Redis pub/sub. Dupliquer
+ * ce calcul ferait diverger le routage entre les deux voies, et un événement
+ * pourrait alors atteindre la bonne salle par un chemin et la mauvaise par
+ * l'autre.
+ */
+function dispatch({ event, target, payload }: PublishPayload): string {
+  const room = target.kind === 'user' ? SOCKET_ROOMS.user(target.userId) : SOCKET_ROOMS.admins;
+
+  io.to(room).emit(event, payload);
+  log('info', 'événement diffusé', { event, room });
+
+  return room;
 }
 
 function safeJsonParse(raw: string): unknown {
@@ -218,9 +233,74 @@ function extractBearer(header: string | undefined): string | undefined {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Abonnement Redis                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Réception des événements publiés par le backend.
+ *
+ * Ce transport remplace l'appel HTTP `/emit` et lève sa limite de fond : avec
+ * HTTP, le backend ne pouvait joindre qu'une seule adresse, donc une seule
+ * instance temps réel, et les clients connectés aux autres n'auraient rien
+ * reçu. Un message pub/sub atteint toutes les instances abonnées — c'est la
+ * condition de la mise à l'échelle horizontale.
+ *
+ * `/emit` est conservé : il sert de second recours quand Redis est absent, et
+ * il n'a aucun coût tant qu'il n'est pas appelé.
+ *
+ * **Une connexion dédiée est obligatoire.** Un client Redis passé en mode
+ * abonné n'accepte plus aucune autre commande ; réutiliser une connexion
+ * partagée la rendrait inutilisable pour tout le reste.
+ */
+let subscriber: Redis | undefined;
+
+if (config.REDIS_URL) {
+  const channel = realtimeChannel(config.REDIS_KEY_PREFIX);
+
+  subscriber = new Redis(config.REDIS_URL, {
+    // Ici, à l'inverse du cache du backend, la connexion doit **tenir** : un
+    // abonné qui renonce cesse silencieusement de recevoir les événements.
+    maxRetriesPerRequest: null,
+    retryStrategy: (times: number) => Math.min(times * 500, 10_000),
+  });
+
+  subscriber.on('error', (error: Error) => {
+    log('warn', 'connexion redis dégradée', { errorMessage: error.message });
+  });
+
+  subscriber.on('message', (_channel: string, raw: string) => {
+    const parsed = publishSchema.safeParse(safeJsonParse(raw));
+
+    /*
+     * Un message mal formé est ignoré, pas propagé. Le canal est interne, mais
+     * un message d'une version antérieure du backend resté en vol pendant un
+     * déploiement suffirait sinon à faire tomber le service — et avec lui,
+     * toutes les connexions clientes ouvertes.
+     */
+    if (!parsed.success) {
+      log('warn', 'message redis ignoré : charge utile invalide');
+      return;
+    }
+
+    dispatch(parsed.data);
+  });
+
+  void subscriber
+    .subscribe(channel)
+    .then(() => log('info', 'abonné au canal redis', { channel }))
+    .catch((error: Error) =>
+      log('error', 'abonnement redis impossible', { channel, errorMessage: error.message }),
+    );
+}
+
+/* -------------------------------------------------------------------------- */
 
 httpServer.listen(config.PORT, () => {
-  log('info', 'service temps réel démarré', { port: config.PORT, environment: config.APP_ENV });
+  log('info', 'service temps réel démarré', {
+    port: config.PORT,
+    environment: config.APP_ENV,
+    transport: config.REDIS_URL ? 'redis+http' : 'http',
+  });
 });
 
 // Arrêt propre : les clients reçoivent une déconnexion explicite et se
@@ -228,6 +308,7 @@ httpServer.listen(config.PORT, () => {
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
     log('info', 'arrêt en cours', { signal });
+    void subscriber?.quit().catch(() => subscriber?.disconnect());
     io.close(() => httpServer.close(() => process.exit(0)));
   });
 }

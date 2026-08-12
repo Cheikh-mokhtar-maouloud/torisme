@@ -38,6 +38,15 @@ const schema = z.object({
         .filter(Boolean),
     ),
 
+  /**
+   * Redis. Présent, le service s'abonne au canal du backend ; absent, il ne
+   * reçoit que les appels HTTP `/emit`. Les deux voies aboutissent au même
+   * routage, donc au même comportement observable.
+   */
+  REDIS_URL: z.string().optional(),
+  /** Doit être identique au `REDIS_KEY_PREFIX` du backend : il nomme le canal. */
+  REDIS_KEY_PREFIX: z.string().min(1).default('tourism'),
+
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });
 

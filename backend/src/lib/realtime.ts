@@ -1,8 +1,11 @@
 import type { SocketEvent } from '@tourism/shared/constants';
 
+import { realtimeChannel } from '@tourism/shared/constants';
+
 import { env } from '@/config/env';
 
 import { logger } from './logger';
+import { safeRedis } from './redis';
 
 /**
  * Publication d'événements vers le service temps réel.
@@ -11,9 +14,14 @@ import { logger } from './logger';
  * permanente vers Socket.IO : il pousse chaque événement par un appel HTTP
  * signé d'un secret partagé.
  *
- * La Phase 13 remplacera ce transport par Redis pub/sub, ce qui supprimera
- * l'aller-retour HTTP et permettra à plusieurs instances du service temps réel
- * de recevoir la même publication.
+ * Depuis la Phase 13, **Redis pub/sub est le transport préféré**. L'appel HTTP
+ * reste en second recours.
+ *
+ * Ce que le pub/sub apporte, et que HTTP ne pouvait pas donner : un message
+ * publié sur un canal atteint *toutes* les instances abonnées. Avec HTTP, le
+ * backend ne pouvait joindre qu'une seule adresse — donc une seule instance
+ * temps réel — et les clients connectés aux autres n'auraient jamais rien reçu.
+ * C'est la condition de la mise à l'échelle horizontale prévue en Phase 16.
  */
 
 type Target = { kind: 'user'; userId: string } | { kind: 'admins' };
@@ -32,6 +40,26 @@ export async function publish(
   payload: Record<string, unknown> = {},
 ): Promise<void> {
   const config = env();
+
+  /*
+   * Voie préférée : Redis. `publish` renvoie le nombre d'abonnés joints ; zéro
+   * signifie qu'aucun service temps réel n'écoute, et il est alors inutile de
+   * tenter le repli HTTP — il viserait le même service absent.
+   */
+  if (config.REDIS_URL) {
+    const delivered = await safeRedis(
+      async (client) =>
+        client.publish(
+          realtimeChannel(config.REDIS_KEY_PREFIX),
+          JSON.stringify({ event, target, payload }),
+        ),
+      -1,
+    );
+
+    // -1 : Redis lui-même est indisponible. On retombe alors sur HTTP, qui a
+    // ses propres défaillances mais pas les mêmes.
+    if (delivered >= 0) return;
+  }
 
   // Service non configuré : l'application fonctionne sans, simplement sans
   // mise à jour instantanée. C'est le cas en développement par défaut.

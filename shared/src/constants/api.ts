@@ -113,6 +113,18 @@ export const SOCKET_ROOMS = {
 } as const;
 
 /** Charge utile d'un événement temps réel. */
+/**
+ * Canal Redis pub/sub par lequel le backend diffuse vers le service temps réel.
+ *
+ * Dérivé du préfixe de clés, et non figé : plusieurs environnements peuvent
+ * partager une instance Redis, et un canal commun ferait recevoir à `staging`
+ * les événements de `production` — donc des notifications réelles poussées vers
+ * des appareils de test.
+ */
+export function realtimeChannel(keyPrefix: string): string {
+  return `${keyPrefix}:realtime:events`;
+}
+
 export interface RealtimeEvent<TPayload = Record<string, unknown>> {
   event: SocketEvent;
   payload: TPayload;
