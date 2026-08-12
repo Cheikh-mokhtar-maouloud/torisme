@@ -6,6 +6,7 @@ import {
   Text,
   TextInput,
   View,
+  type StyleProp,
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
@@ -108,7 +109,15 @@ export function Input({ invalid, style, ...props }: TextInputProps & { invalid?:
 /* Affichage                                                                   */
 /* -------------------------------------------------------------------------- */
 
-export function Card({ children, style }: { children: ReactNode; style?: ViewStyle }) {
+export function Card({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  // `StyleProp` plutôt que `ViewStyle` : les appelants composent souvent
+  // plusieurs styles conditionnels, ce qu'un objet seul n'accepte pas.
+  style?: StyleProp<ViewStyle>;
+}) {
   return <View style={[styles.card, style]}>{children}</View>;
 }
 

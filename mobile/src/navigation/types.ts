@@ -35,6 +35,7 @@ export type RootStackParamList = {
   ExcursionBookingConfirmation: { bookingId: string };
   ExcursionBookingDetail: { bookingId: string };
   Favorites: undefined;
+  Notifications: undefined;
   WriteReview: { targetType: PlaceType; targetId: string; targetName: string };
   EditProfile: undefined;
   ChangePassword: undefined;

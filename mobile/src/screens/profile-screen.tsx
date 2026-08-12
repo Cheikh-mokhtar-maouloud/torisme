@@ -4,6 +4,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../auth/auth-context';
+import { useUnreadCount } from '../api/use-notifications';
 import { appConfig } from '../config/env';
 import { Button, Card, Divider, EmptyState } from '../components/ui';
 import { formatDate } from '../lib/format';
@@ -16,6 +17,7 @@ export function ProfileScreen() {
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
   const { user, isAuthenticated, logout } = useAuth();
+  const unreadCount = useUnreadCount(isAuthenticated);
 
   const confirmLogout = () => {
     Alert.alert('Déconnexion', 'Voulez-vous vous déconnecter ?', [
@@ -88,12 +90,13 @@ export function ProfileScreen() {
 
       <Text style={styles.sectionTitle}>Mes contenus</Text>
       <Card style={styles.card}>
+        <ActionRow
+          label="Notifications"
+          onPress={() => navigation.navigate('Notifications')}
+          badge={unreadCount > 0 ? String(unreadCount) : undefined}
+        />
+        <Divider />
         <ActionRow label="Mes favoris" onPress={() => navigation.navigate('Favorites')} />
-      </Card>
-
-      <Text style={styles.sectionTitle}>À venir</Text>
-      <Card style={styles.card}>
-        <Row label="Notifications" value="Phase 11" muted />
       </Card>
 
       <Button
@@ -109,15 +112,31 @@ export function ProfileScreen() {
 }
 
 /** Entrée cliquable menant à un écran de gestion du compte. */
-function ActionRow({ label, onPress }: { label: string; onPress: () => void }) {
+function ActionRow({
+  label,
+  onPress,
+  badge,
+}: {
+  label: string;
+  onPress: () => void;
+  badge?: string | undefined;
+}) {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={badge ? `${label}, ${badge} non lues` : label}
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >
       <Text style={styles.rowValue}>{label}</Text>
-      <Text style={styles.chevron}>›</Text>
+      <View style={styles.rowRight}>
+        {badge ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badge}</Text>
+          </View>
+        ) : null}
+        <Text style={styles.chevron}>›</Text>
+      </View>
     </Pressable>
   );
 }
@@ -185,6 +204,17 @@ const styles = StyleSheet.create({
   rowMuted: { color: colors.text.muted },
   rowPressed: { opacity: 0.6 },
   chevron: { fontSize: 22, color: colors.text.muted, lineHeight: 24 },
+  rowRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  badge: {
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 6,
+    borderRadius: 11,
+    backgroundColor: colors.brand[600],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: { ...typography.caption, color: colors.text.inverse, fontWeight: '700', fontSize: 12 },
 
   authActions: { gap: spacing.sm, minWidth: 220 },
   logout: { marginTop: spacing.lg },

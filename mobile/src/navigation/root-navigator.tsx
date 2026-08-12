@@ -20,6 +20,7 @@ import {
 import { LoginScreen, RegisterScreen } from '../screens/auth-screens';
 import { ChangePasswordScreen, EditProfileScreen } from '../screens/account-screens';
 import { FavoritesScreen, WriteReviewScreen } from '../screens/social-screens';
+import { NotificationsScreen } from '../screens/notifications-screen';
 import { ExcursionBookingScreen } from '../screens/excursion-booking-screen';
 import {
   ExcursionBookingConfirmationScreen,
@@ -166,6 +167,11 @@ export function RootNavigator() {
         options={{ title: 'Réservation' }}
       />
 
+      <Stack.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{ title: 'Notifications' }}
+      />
       <Stack.Screen
         name="Favorites"
         component={FavoritesScreen}
