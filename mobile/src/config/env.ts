@@ -11,6 +11,11 @@ import { z } from 'zod';
 const extraSchema = z.object({
   apiUrl: z.url('EXPO_PUBLIC_API_URL doit être une URL valide'),
   appEnv: z.enum(['development', 'staging', 'production']),
+  /**
+   * Service temps réel. Vide, l'application fonctionne normalement, simplement
+   * sans mise à jour instantanée — le temps réel est un confort, pas un socle.
+   */
+  realtimeUrl: z.union([z.url(), z.literal('')]).default(''),
 });
 
 const parsed = extraSchema.safeParse(Constants.expoConfig?.extra ?? {});
@@ -25,6 +30,7 @@ if (!parsed.success) {
 
 export const appConfig = {
   apiUrl: parsed.data.apiUrl.replace(/\/$/, ''),
+  realtimeUrl: parsed.data.realtimeUrl.replace(/\/$/, ''),
   appEnv: parsed.data.appEnv,
   isProduction: parsed.data.appEnv === 'production',
 } as const;

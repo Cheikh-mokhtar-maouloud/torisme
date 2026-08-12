@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ApiRequestError } from './src/api/client';
 import { AuthProvider, useAuth } from './src/auth/auth-context';
 import { RootNavigator } from './src/navigation/root-navigator';
+import { useRealtime } from './src/realtime/use-realtime';
 import { colors } from './src/theme';
 
 /**
@@ -75,6 +76,10 @@ export default function App() {
  */
 function AppContent() {
   const { isRestoring } = useAuth();
+
+  // Connexion temps réel : active uniquement une fois la session restaurée,
+  // puisqu'elle a besoin du jeton.
+  useRealtime();
 
   if (isRestoring) {
     return (

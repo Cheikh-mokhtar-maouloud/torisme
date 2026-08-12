@@ -69,6 +69,7 @@ const config: ExpoConfig = {
   extra: {
     apiUrl: process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000',
     appEnv: process.env.EXPO_PUBLIC_APP_ENV ?? 'development',
+    realtimeUrl: process.env.EXPO_PUBLIC_REALTIME_URL ?? 'http://localhost:4100',
   },
 };
 

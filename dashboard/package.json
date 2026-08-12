@@ -15,7 +15,8 @@
     "@tourism/shared": "*",
     "next": "16.3.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -25,7 +26,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "tsx": "^4.23.12"
+    "tsx": "^4.23.12",
+    "typescript": "^5"
   }
 }

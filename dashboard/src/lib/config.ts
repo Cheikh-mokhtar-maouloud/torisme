@@ -14,6 +14,8 @@ interface Config {
   apiUrl: string;
   appEnv: string;
   isProduction: boolean;
+  /** Service temps réel. Vide : le dashboard fonctionne sans mise à jour live. */
+  realtimeUrl: string;
 }
 
 let cached: Config | undefined;
@@ -35,6 +37,9 @@ function load(): Config {
     apiUrl: apiUrl.replace(/\/$/, ''),
     appEnv: process.env.APP_ENV ?? 'development',
     isProduction: process.env.NODE_ENV === 'production',
+    // Préfixée NEXT_PUBLIC_ : c'est la seule URL que le navigateur doit
+    // connaître, la connexion Socket.IO partant du client.
+    realtimeUrl: (process.env.NEXT_PUBLIC_REALTIME_URL ?? '').replace(/\/$/, ''),
   };
 }
 
@@ -50,5 +55,9 @@ export const config = {
   get isProduction(): boolean {
     cached ??= load();
     return cached.isProduction;
+  },
+  get realtimeUrl(): string {
+    cached ??= load();
+    return cached.realtimeUrl;
   },
 };

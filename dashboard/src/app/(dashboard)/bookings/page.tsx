@@ -8,7 +8,10 @@ import { DataTable, type Column } from '@/components/data/data-table';
 import { FilterBar } from '@/components/data/filter-bar';
 import { Pagination } from '@/components/data/pagination';
 import { Badge, Card, EmptyState, PageHeader } from '@/components/ui/primitives';
+import { LiveUpdates } from '@/components/data/live-updates';
 import { api, toSearchParams } from '@/lib/api/client';
+import { config } from '@/lib/config';
+import { getSessionToken } from '@/lib/auth/session';
 import { formatDate, formatMoney } from '@/lib/format';
 
 export const metadata: Metadata = { title: 'Réservations — Administration' };
@@ -48,6 +51,10 @@ export default async function BookingsPage({
   // au même endpoint appelé depuis l'application mobile.
   const { items, meta } = await api.list<Booking>(`/api/bookings${query}`);
 
+  // Le jeton est transmis au composant client : le navigateur ne peut pas lire
+  // le cookie de session, qui est HTTP-only.
+  const token = (await getSessionToken()) ?? '';
+
   const pendingCount = items.filter((booking) => booking.status === BookingStatus.PENDING).length;
 
   return (
@@ -59,6 +66,7 @@ export default async function BookingsPage({
             ? `${pendingCount} demande${pendingCount > 1 ? 's' : ''} en attente sur cette page.`
             : 'Demandes de séjour reçues depuis l’application.'
         }
+        actions={<LiveUpdates token={token} realtimeUrl={config.realtimeUrl} />}
       />
 
       <Card>
