@@ -11,7 +11,8 @@ tourism-platform/
 ├── mobile/      Application React Native (Expo) — touristes
 ├── dashboard/   Application Next.js — administration
 ├── backend/     API REST Next.js (route handlers) + MongoDB
-├── shared/      Types, constantes et schémas Zod communs aux trois
+├── realtime/    Service Socket.IO — diffusion temps réel
+├── shared/      Types, constantes et schémas Zod communs
 └── docs/        Documentation
 ```
 
@@ -107,6 +108,42 @@ composant serveur. Une session périmée ne peut donc pas être effacée sur pla
 on redirige vers `/login?error=…`, et le middleware laisse passer cette page
 lorsqu'une erreur est signalée, sans quoi un cookie invalide provoquerait une
 boucle de redirection.
+
+## Temps réel (Phase 12)
+
+```
+backend (serverless)                    realtime (Node, longue durée)
+  │                                       │
+  │  POST /emit  ─────────────────────►   │  io.to(salle).emit(...)
+  │  X-Publish-Secret                     │        │
+  │                                       │        ▼
+  │                                  mobile / dashboard (Socket.IO)
+```
+
+**Pourquoi un service séparé.** Les route handlers Next sur Vercel ne peuvent
+pas héberger une connexion longue. Le SSE couvrirait les besoins actuels — tous
+les événements vont du serveur vers le client — mais serait coupé de la même
+façon, et n'offrirait pas de chemin vers l'adaptateur Redis de la Phase 16.
+
+**Transport backend → temps réel.** Un appel HTTP signé d'un secret partagé,
+distinct de `JWT_SECRET` : ce sont deux relations de confiance différentes, et
+les confondre ferait qu'un jeton client volé permettrait de publier. Le secret
+est comparé en **temps constant**, une égalité de chaînes révélant par sa durée
+combien de caractères sont corrects.
+
+La Phase 13 remplacera ce transport par Redis pub/sub, ce qui supprimera
+l'aller-retour HTTP et permettra de faire tourner plusieurs instances du service.
+
+**Cloisonnement.** Le client ne choisit jamais sa salle : elle est dérivée de son
+jeton (`user:<id>`, plus `admins` pour un administrateur). Un `join` piloté par
+le client permettrait d'écouter le canal de n'importe qui.
+
+**Le temps réel n'est jamais un socle.** La publication ne lève pas, le service
+peut être arrêté, l'application reste pleinement fonctionnelle — simplement sans
+mise à jour instantanée. Côté client, un événement ne fait qu'**invalider un
+cache** : les données sont ensuite rechargées depuis l'API, seule source de
+vérité. Écrire la charge utile directement dans le cache ferait diverger
+l'affichage au moindre champ oublié dans l'événement.
 
 ## Contrat d'API
 

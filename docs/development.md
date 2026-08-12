@@ -42,7 +42,12 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 | ----------- | ---------------------- | ----------------------- |
 | Backend API | `npm run dev:backend`  | http://localhost:4000   |
 | Dashboard   | `npm run dev:dashboard`| http://localhost:3000   |
+| Temps réel  | `npm run dev:realtime` | http://localhost:4100   |
 | Mobile      | `npm run dev:mobile`   | Expo (QR code)          |
+
+> Le service temps réel est **facultatif** : sans lui, tout fonctionne, il manque
+> seulement les mises à jour instantanées. Il exige `realtime/.env` avec le
+> **même** `JWT_SECRET` que le backend, et le même `REALTIME_PUBLISH_SECRET`.
 
 Vérification rapide que le backend répond :
 
@@ -76,7 +81,12 @@ npm run test:uploads     --workspace backend   # téléversement et validation
 npm run test:excursions  --workspace backend   # places, concurrence, restitution
 npm run test:reviews     --workspace backend   # anti faux avis, modération, favoris
 npm run test:notifications --workspace backend # émission, cloisonnement, diffusion
+npm run test:realtime    --workspace realtime  # authentification, salles, cloisonnement
 ```
+
+`test:realtime` exige le backend **et** le service temps réel démarrés. Son
+assertion centrale : un événement destiné à un compte ne fuite jamais vers un
+autre socket connecté.
 
 ### Emails en développement
 

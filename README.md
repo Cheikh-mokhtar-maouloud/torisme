@@ -11,6 +11,7 @@ Marché initial : la **Mauritanie**, avec une architecture multi-pays.
 | `mobile/`    | Application touriste                  | React Native (Expo) · TypeScript        |
 | `dashboard/` | Administration                        | Next.js · TypeScript · Tailwind CSS v4  |
 | `backend/`   | API REST unique                       | Next.js route handlers · MongoDB        |
+| `realtime/`  | Diffusion temps réel                  | Node · Socket.IO                        |
 | `shared/`    | Types, constantes, validation Zod     | TypeScript                              |
 | `docs/`      | Documentation                         | Markdown                                |
 
@@ -29,6 +30,7 @@ cp mobile/.env.example    mobile/.env.local
 
 npm run dev:backend                # http://localhost:4000
 npm run dev:dashboard              # http://localhost:3000
+npm run dev:realtime               # :4100 (facultatif)
 npm run dev:mobile                 # Expo
 
 npm run seed  --workspace backend    # données de développement
@@ -74,7 +76,8 @@ npm run build          # build de production backend + dashboard
 | 9     | Réservation d'excursions             | ✅ terminée |
 | 10    | Favoris, avis et modération          | ✅ terminée |
 | 11    | Notifications et emails              | ✅ terminée |
-| 12–16 | Temps réel, Redis, sécurité, migration serveur, mise à l'échelle | à venir |
+| 12    | Temps réel (Socket.IO)               | ✅ terminée |
+| 13–16 | Redis et files, sécurité, migration serveur, mise à l'échelle | à venir |
 
 
 ## Licence
