@@ -47,6 +47,17 @@ export const BOOKING = {
   MAX_GUESTS: 20,
 } as const;
 
+export const REMINDER = {
+  /**
+   * Délai avant le départ d'une excursion pour l'envoi du rappel.
+   *
+   * Vingt-quatre heures : assez tôt pour réorganiser sa journée ou annuler,
+   * assez tard pour que le message soit encore présent à l'esprit. Un rappel à
+   * une semaine est oublié ; à deux heures, il ne sert plus à rien.
+   */
+  EXCURSION_LEAD_HOURS: 24,
+} as const;
+
 export const UPLOAD = {
   /**
    * 4 Mo : le fichier transite par l'API, et Vercel plafonne le corps d'une

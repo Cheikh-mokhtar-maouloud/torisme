@@ -7,6 +7,7 @@ import { logger } from '@/lib/logger';
 import { mailer } from '@/lib/mail';
 import type { MailMessage } from '@/lib/mail';
 import { paginateQuery, type PaginatedResult } from '@/lib/query';
+import { enqueueMail } from '@/lib/queue';
 import { publish } from '@/lib/realtime';
 import { serializeDocument } from '@/lib/serialize';
 import { Notification, User } from '@/models';
@@ -116,16 +117,38 @@ export async function notify(input: NotifyInput): Promise<void> {
   if (input.email) await sendEmail(input.email);
 }
 
-/** Envoi d'email isolé, jamais propagé à l'appelant. */
+/**
+ * Envoi d'email, jamais propagé à l'appelant.
+ *
+ * Depuis la Phase 13, le message est **déposé en file** : BullMQ le réessaie
+ * avec un délai croissant, et un échec définitif reste consultable au lieu de
+ * disparaître dans les journaux. C'est ce que promettait le commentaire de
+ * `notify` depuis la Phase 9.
+ *
+ * Sans Redis, le repli est l'envoi direct — le comportement d'avant cette
+ * phase, donc aucune régression.
+ */
 export async function sendEmail(message: MailMessage): Promise<void> {
   try {
-    await mailer().send(message);
+    await enqueueMail(message, () => deliverEmail(message));
   } catch (error) {
-    logger.error('email non envoyé', {
+    logger.error('email non traité', {
       subject: message.subject,
       errorMessage: error instanceof Error ? error.message : String(error),
     });
   }
+}
+
+/**
+ * Remise effective au fournisseur.
+ *
+ * Contrairement à `sendEmail`, cette fonction **lève** en cas d'échec : c'est
+ * indispensable pour que le worker considère la tâche comme ratée et la
+ * réessaie. Avaler l'erreur ici ferait marquer « réussie » une tâche dont
+ * l'email n'est jamais parti, ce qui viderait la file de tout son intérêt.
+ */
+export async function deliverEmail(message: MailMessage): Promise<void> {
+  await mailer().send(message);
 }
 
 /* -------------------------------------------------------------------------- */
