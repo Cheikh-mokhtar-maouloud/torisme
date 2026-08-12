@@ -1,6 +1,12 @@
 import { randomBytes } from 'node:crypto';
 
-import { BookingStatus, ErrorCode, ExcursionStatus, UserRole } from '@tourism/shared/constants';
+import {
+  BookingStatus,
+  ErrorCode,
+  ExcursionStatus,
+  NotificationType,
+  UserRole,
+} from '@tourism/shared/constants';
 import type { ExcursionBooking as ExcursionBookingDto } from '@tourism/shared/types';
 import type {
   CreateExcursionBookingInput,
@@ -11,7 +17,10 @@ import { HttpError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import { escapeRegex, paginateQuery, type PaginatedResult } from '@/lib/query';
 import { serializeDocument } from '@/lib/serialize';
-import { Excursion, ExcursionBooking } from '@/models';
+import { bookingCancelledEmail, bookingConfirmedEmail } from '@/lib/mail/templates';
+import { Excursion, ExcursionBooking, User } from '@/models';
+
+import { notify, notifyAdmins } from './notification.service';
 
 /** Statuts qui immobilisent des places. Une annulation les restitue. */
 const BLOCKING_STATUSES = [BookingStatus.PENDING, BookingStatus.CONFIRMED];
@@ -82,6 +91,12 @@ export async function createExcursionBooking(
         { $set: { status: ExcursionStatus.FULL } },
       );
     }
+
+    void notifyAdmins(
+      'Nouvelle réservation d’excursion',
+      `${created.reference} — ${excursion.title}, ${input.seats} place(s)`,
+      { excursionBookingId: String(created._id) },
+    );
 
     return serializeDocument<ExcursionBookingDto>(created.toObject());
   } catch (error) {
@@ -206,7 +221,45 @@ export async function cancelExcursionBooking(
 
   await releaseSeats(String(booking.excursionId), booking.seats);
 
+  const description = await describeExcursionBooking(cancelled);
+
+  void notify({
+    userId: String(cancelled.userId),
+    type: NotificationType.BOOKING_CANCELLED,
+    title: 'Réservation d’excursion annulée',
+    body: `${cancelled.reference} — ${description.title}`,
+    data: { excursionBookingId: String(cancelled._id) },
+    ...(description.email
+      ? {
+          email: bookingCancelledEmail(description.email, {
+            reference: cancelled.reference,
+            placeName: description.title,
+            ...(reason ? { reason } : {}),
+          }),
+        }
+      : {}),
+  });
+
   return serializeDocument<ExcursionBookingDto>(cancelled);
+}
+
+/** Libellés partagés par les notifications d'excursion. */
+async function describeExcursionBooking(booking: {
+  excursionId: unknown;
+  userId: unknown;
+}): Promise<{ email: string; title: string; when: string }> {
+  const [excursion, user] = await Promise.all([
+    Excursion.findById(booking.excursionId).select('title startsAt').lean(),
+    User.findById(booking.userId).select('email').lean(),
+  ]);
+
+  return {
+    email: user?.email ?? '',
+    title: excursion?.title ?? 'Excursion',
+    when: excursion?.startsAt
+      ? excursion.startsAt.toISOString().slice(0, 16).replace('T', ' ')
+      : '',
+  };
 }
 
 /**
@@ -256,5 +309,26 @@ export async function confirmExcursionBooking(id: string): Promise<ExcursionBook
   ).lean();
 
   if (!confirmed) throw HttpError.conflict('Seule une réservation en attente peut être confirmée');
+
+  const description = await describeExcursionBooking(confirmed);
+
+  void notify({
+    userId: String(confirmed.userId),
+    type: NotificationType.BOOKING_CONFIRMED,
+    title: 'Participation confirmée',
+    body: `${confirmed.reference} — ${description.title}`,
+    data: { excursionBookingId: String(confirmed._id) },
+    ...(description.email
+      ? {
+          email: bookingConfirmedEmail(description.email, {
+            reference: confirmed.reference,
+            placeName: description.title,
+            when: description.when,
+            total: `${confirmed.totalPrice} ${confirmed.currency}`,
+          }),
+        }
+      : {}),
+  });
+
   return serializeDocument<ExcursionBookingDto>(confirmed);
 }

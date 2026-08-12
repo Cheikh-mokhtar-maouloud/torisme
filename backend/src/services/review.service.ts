@@ -1,7 +1,13 @@
 import { MongoServerError } from 'mongodb';
 import { Types, type Model } from 'mongoose';
 
-import { BookingStatus, PlaceType, ReviewStatus, UserRole } from '@tourism/shared/constants';
+import {
+  BookingStatus,
+  NotificationType,
+  PlaceType,
+  ReviewStatus,
+  UserRole,
+} from '@tourism/shared/constants';
 import type { Review as ReviewDto } from '@tourism/shared/types';
 import {
   requiresBooking,
@@ -23,6 +29,8 @@ import {
   Restaurant,
   Review,
 } from '@/models';
+
+import { notify } from './notification.service';
 
 /**
  * Vue minimale d'un lieu noté.
@@ -186,6 +194,23 @@ export async function moderateReview(id: string, input: ModerateReviewInput): Pr
   // Approuver ou rejeter change l'ensemble des avis visibles : la note du lieu
   // doit suivre immédiatement.
   await recalculateRating(updated.targetType as PlaceType, String(updated.targetId));
+
+  /*
+   * L'auteur est prévenu du sort de son avis. Le motif de rejet reste interne :
+   * il sert à l'équipe de modération, et l'exposer nourrirait des débats sur
+   * chaque décision.
+   */
+  void notify({
+    userId: String(updated.userId),
+    type: NotificationType.REVIEW_MODERATED,
+    title:
+      input.status === ReviewStatus.APPROVED ? 'Votre avis est publié' : 'Votre avis a été refusé',
+    body:
+      input.status === ReviewStatus.APPROVED
+        ? 'Merci pour votre retour, il est désormais visible par les autres voyageurs.'
+        : 'Votre avis ne respecte pas nos règles de publication et n’a pas été retenu.',
+    data: { reviewId: String(updated._id) },
+  });
 
   return serializeDocument<ReviewDto>(updated);
 }

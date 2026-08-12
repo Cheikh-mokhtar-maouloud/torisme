@@ -1,6 +1,12 @@
 import { randomBytes } from 'node:crypto';
 
-import { BookingStatus, ContentStatus, ErrorCode, UserRole } from '@tourism/shared/constants';
+import {
+  BookingStatus,
+  ContentStatus,
+  ErrorCode,
+  NotificationType,
+  UserRole,
+} from '@tourism/shared/constants';
 import type { Booking as BookingDto } from '@tourism/shared/types';
 import {
   countNights,
@@ -12,8 +18,11 @@ import {
 import { HttpError } from '@/lib/errors';
 import { escapeRegex, paginateQuery, type PaginatedResult } from '@/lib/query';
 import { withRoomLock } from '@/lib/room-lock';
+import { bookingCancelledEmail, bookingConfirmedEmail } from '@/lib/mail/templates';
 import { serializeDocument } from '@/lib/serialize';
-import { Booking, Hotel, Room } from '@/models';
+import { Booking, Hotel, Room, User } from '@/models';
+
+import { notify, notifyAdmins } from './notification.service';
 
 /**
  * Statuts qui immobilisent une unité de chambre.
@@ -166,7 +175,35 @@ export async function createBooking(
     });
   });
 
+  // L'administration doit voir arriver la demande sans surveiller la liste.
+  void notifyAdmins(
+    'Nouvelle demande de réservation',
+    `${created.reference} — ${hotel.name}, ${nights} nuit(s)`,
+    { bookingId: String(created._id) },
+  );
+
   return serializeDocument<BookingDto>(created.toObject());
+}
+
+/** Libellés partagés par les notifications de réservation. */
+async function describeBooking(booking: {
+  hotelId: unknown;
+  userId: unknown;
+  checkIn: Date;
+  checkOut: Date;
+}): Promise<{ email: string; hotelName: string; when: string }> {
+  const [hotel, user] = await Promise.all([
+    Hotel.findById(booking.hotelId).select('name').lean(),
+    User.findById(booking.userId).select('email').lean(),
+  ]);
+
+  const format = (date: Date) => date.toISOString().slice(0, 10);
+
+  return {
+    email: user?.email ?? '',
+    hotelName: hotel?.name ?? 'Établissement',
+    when: `${format(booking.checkIn)} → ${format(booking.checkOut)}`,
+  };
 }
 
 export async function listBookings(
@@ -257,6 +294,25 @@ export async function cancelBooking(
 
   if (!updated) throw HttpError.conflict('Cette réservation ne peut plus être annulée');
 
+  const description = await describeBooking(updated);
+
+  void notify({
+    userId: String(updated.userId),
+    type: NotificationType.BOOKING_CANCELLED,
+    title: 'Réservation annulée',
+    body: `${updated.reference} — ${description.hotelName}`,
+    data: { bookingId: String(updated._id) },
+    ...(description.email
+      ? {
+          email: bookingCancelledEmail(description.email, {
+            reference: updated.reference,
+            placeName: description.hotelName,
+            ...(reason ? { reason } : {}),
+          }),
+        }
+      : {}),
+  });
+
   return serializeDocument<BookingDto>(updated);
 }
 
@@ -269,5 +325,26 @@ export async function confirmBooking(id: string): Promise<BookingDto> {
   ).lean();
 
   if (!updated) throw HttpError.conflict('Seule une réservation en attente peut être confirmée');
+
+  const description = await describeBooking(updated);
+
+  void notify({
+    userId: String(updated.userId),
+    type: NotificationType.BOOKING_CONFIRMED,
+    title: 'Réservation confirmée',
+    body: `${updated.reference} — ${description.hotelName}, ${description.when}`,
+    data: { bookingId: String(updated._id) },
+    ...(description.email
+      ? {
+          email: bookingConfirmedEmail(description.email, {
+            reference: updated.reference,
+            placeName: description.hotelName,
+            when: description.when,
+            total: `${updated.totalPrice} ${updated.currency}`,
+          }),
+        }
+      : {}),
+  });
+
   return serializeDocument<BookingDto>(updated);
 }
