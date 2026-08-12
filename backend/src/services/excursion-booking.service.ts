@@ -5,6 +5,7 @@ import {
   ErrorCode,
   ExcursionStatus,
   NotificationType,
+  REMINDER,
   SOCKET_EVENTS,
   UserRole,
 } from '@tourism/shared/constants';
@@ -19,7 +20,12 @@ import { logger } from '@/lib/logger';
 import { escapeRegex, paginateQuery, type PaginatedResult } from '@/lib/query';
 import { publish } from '@/lib/realtime';
 import { serializeDocument } from '@/lib/serialize';
-import { bookingCancelledEmail, bookingConfirmedEmail } from '@/lib/mail/templates';
+import {
+  bookingCancelledEmail,
+  bookingConfirmedEmail,
+  excursionReminderEmail,
+} from '@/lib/mail/templates';
+import { cancelExcursionReminder, scheduleExcursionReminder } from '@/lib/queue';
 import { Excursion, ExcursionBooking, User } from '@/models';
 
 import { notify, notifyAdmins } from './notification.service';
@@ -236,6 +242,14 @@ export async function cancelExcursionBooking(
 
   await releaseSeats(String(booking.excursionId), booking.seats);
 
+  /*
+   * Le rappel programmé est retiré de la file. La mise à jour conditionnelle de
+   * `sendExcursionReminder` filtrerait de toute façon une réservation annulée ;
+   * on le supprime tout de même, pour ne pas conserver pendant des semaines des
+   * tâches dont on sait déjà qu'elles ne feront rien.
+   */
+  void cancelExcursionReminder(String(cancelled._id));
+
   void publish(
     SOCKET_EVENTS.BOOKING_UPDATED,
     { kind: 'user', userId: String(cancelled.userId) },
@@ -357,5 +371,71 @@ export async function confirmExcursionBooking(id: string): Promise<ExcursionBook
       : {}),
   });
 
+  /*
+   * Le rappel n'est programmé qu'à la confirmation, pas à la création : une
+   * demande restée en attente n'a pas à générer un rappel pour une excursion à
+   * laquelle son auteur ne participera peut-être jamais.
+   */
+  const excursion = await Excursion.findById(confirmed.excursionId).select('startsAt').lean();
+
+  if (excursion) {
+    void scheduleExcursionReminder(
+      { excursionBookingId: String(confirmed._id) },
+      new Date(excursion.startsAt.getTime() - REMINDER.EXCURSION_LEAD_HOURS * 3_600_000),
+    );
+  }
+
   return serializeDocument<ExcursionBookingDto>(confirmed);
+}
+
+/**
+ * Envoie le rappel d'une excursion à venir. Appelée par le worker.
+ *
+ * L'idempotence repose sur une **mise à jour conditionnelle**, pas sur la
+ * file : `reminderSentAt` ne peut être posé qu'une fois, et c'est le résultat
+ * de cette écriture qui décide de l'envoi. Une file garantit au moins une
+ * livraison — jamais exactement une — donc le garde-fou doit être ici, dans la
+ * base, où deux workers concurrents se départagent réellement.
+ */
+export async function sendExcursionReminder(
+  excursionBookingId: string,
+): Promise<{ sent: boolean; reason?: string }> {
+  const claimed = await ExcursionBooking.findOneAndUpdate(
+    {
+      _id: excursionBookingId,
+      status: BookingStatus.CONFIRMED,
+      reminderSentAt: { $exists: false },
+    },
+    { $set: { reminderSentAt: new Date() } },
+    { new: true },
+  ).lean();
+
+  // Réservation annulée, déjà rappelée, ou introuvable. Ce n'est pas une
+  // erreur : le worker doit considérer la tâche comme terminée, sinon il la
+  // réessaierait indéfiniment sur une condition qui ne changera jamais.
+  if (!claimed) return { sent: false, reason: 'déjà envoyé, annulé ou introuvable' };
+
+  const [excursion, user] = await Promise.all([
+    Excursion.findById(claimed.excursionId).select('title startsAt departureAddress').lean(),
+    User.findById(claimed.userId).select('email').lean(),
+  ]);
+
+  if (!excursion || !user?.email)
+    return { sent: false, reason: 'excursion ou destinataire absent' };
+
+  await notify({
+    userId: String(claimed.userId),
+    type: NotificationType.EXCURSION_REMINDER,
+    title: 'Votre excursion approche',
+    body: `${excursion.title} — départ dans ${REMINDER.EXCURSION_LEAD_HOURS} heures`,
+    data: { excursionBookingId: String(claimed._id) },
+    email: excursionReminderEmail(user.email, {
+      title: excursion.title,
+      when: excursion.startsAt.toISOString(),
+      departure: excursion.departureAddress?.city ?? 'Voir la fiche de l’excursion',
+      seats: claimed.seats,
+    }),
+  });
+
+  return { sent: true };
 }

@@ -29,6 +29,18 @@ const excursionBookingSchema = new Schema(
     },
     cancelledAt: { type: Date },
     cancellationReason: { type: String, maxlength: 500 },
+
+    /**
+     * Horodatage du rappel envoyé avant le départ.
+     *
+     * Ce champ **est** le garde-fou d'idempotence : le worker le pose par une
+     * mise à jour conditionnelle, si bien qu'un rappel rejoué — réessai BullMQ,
+     * worker redémarré, deux instances en parallèle — ne trouve plus la
+     * condition remplie et n'envoie rien. Se fier au seul « une tâche, une
+     * exécution » de la file serait une erreur : une file garantit *au moins*
+     * une livraison, pas exactement une.
+     */
+    reminderSentAt: { type: Date },
   },
   baseSchemaOptions,
 );
