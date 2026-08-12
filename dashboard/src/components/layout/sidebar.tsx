@@ -43,7 +43,7 @@ const SECTIONS: Array<{ title: string; items: NavItem[] }> = [
     title: 'Activité',
     items: [
       { href: '/bookings', label: 'Réservations' },
-      { href: '/reviews', label: 'Avis', phase: 10 },
+      { href: '/reviews', label: 'Avis' },
       { href: '/notifications', label: 'Notifications', phase: 11 },
     ],
   },
