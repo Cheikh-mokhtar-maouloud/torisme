@@ -264,8 +264,38 @@ vider une sortie et bloquer tous les autres clients.
 | GET     | `/api/favorites`                 | user                  |
 | POST    | `/api/favorites`                 | user                  |
 | DELETE  | `/api/favorites?targetType=…&targetId=…` | propriétaire  |
-| GET     | `/api/notifications`             | user (Phase 11)       |
-| PATCH   | `/api/notifications/:id/read`    | propriétaire (Phase 11) |
+| GET     | `/api/notifications`             | user                  |
+| PATCH   | `/api/notifications/:id/read`    | propriétaire          |
+| PATCH   | `/api/notifications/read-all`    | user                  |
+| POST    | `/api/admin/notifications`       | admin                 |
+
+#### Notifications
+
+`GET /api/notifications` renvoie la page **et** `unreadCount` : l'application
+affiche une pastille à chaque ouverture, et une requête séparée pour un simple
+compteur serait du gaspillage.
+
+Les notifications sont émises automatiquement par les événements métier :
+
+| Événement | In-app | Email |
+| --- | :-: | :-: |
+| Création de compte | — | ✅ bienvenue |
+| Mot de passe oublié | — | ✅ lien de réinitialisation |
+| Nouvelle demande de réservation | ✅ administrateurs | — |
+| Réservation confirmée | ✅ client | ✅ |
+| Réservation annulée | ✅ client | ✅ avec motif |
+| Avis modéré | ✅ auteur | — |
+
+**L'émission ne lève jamais.** Une confirmation de réservation ne doit pas
+échouer parce que le serveur d'emails est indisponible : l'opération métier a
+réussi, seule l'information n'est pas partie. L'échec est journalisé.
+
+Corollaire assumé : une notification peut être perdue. La livraison durable —
+file d'attente, réessais, lettres mortes — arrive en Phase 13.
+
+`POST /api/admin/notifications` sans `userIds` diffuse à **tous les comptes
+actifs**. Le dashboard impose un choix explicite de portée : une diffusion
+générale ne doit jamais résulter d'un champ oublié.
 
 #### Avis — règle anti faux avis
 

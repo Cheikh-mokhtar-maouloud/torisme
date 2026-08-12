@@ -75,7 +75,20 @@ npm run test:concurrency --workspace backend   # réservations simultanées
 npm run test:uploads     --workspace backend   # téléversement et validation
 npm run test:excursions  --workspace backend   # places, concurrence, restitution
 npm run test:reviews     --workspace backend   # anti faux avis, modération, favoris
+npm run test:notifications --workspace backend # émission, cloisonnement, diffusion
 ```
+
+### Emails en développement
+
+`MAIL_PROVIDER=console` journalise les messages au lieu de les envoyer. Le lien
+de réinitialisation de mot de passe apparaît donc dans la sortie du backend :
+
+```bash
+grep "Réinitialiser votre mot de passe" # dans les logs du serveur
+```
+
+Cela permet de dérouler tout le parcours sans compte chez un prestataire, et
+sans risquer d'écrire à de vraies adresses depuis un poste de développement.
 
 `test:concurrency` est celui qui compte le plus : il lance douze réservations
 simultanées sur une chambre à une seule unité et vérifie qu'exactement une

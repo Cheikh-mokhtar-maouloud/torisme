@@ -73,7 +73,8 @@ npm run build          # build de production backend + dashboard
 | 8     | Authentification et réservations     | ✅ terminée |
 | 9     | Réservation d'excursions             | ✅ terminée |
 | 10    | Favoris, avis et modération          | ✅ terminée |
-| 11–16 | Notifications, temps réel, Redis, sécurité, mise à l'échelle | à venir |
+| 11    | Notifications et emails              | ✅ terminée |
+| 12–16 | Temps réel, Redis, sécurité, migration serveur, mise à l'échelle | à venir |
 
 
 ## Licence
