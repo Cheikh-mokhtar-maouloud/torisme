@@ -56,3 +56,6 @@ backend/.uploads/*
 # Caches
 .turbo/
 .eslintcache
+
+# Secrets du worker
+worker/.env

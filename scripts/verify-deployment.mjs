@@ -153,6 +153,54 @@ async function run() {
     );
   }
 
+  /* --- Redis et files ------------------------------------------------------------ */
+  console.log('\nRedis, cache et files');
+
+  const redisState = deepBody?.data?.dependencies?.redis;
+
+  expectInProduction(
+    'Redis est configuré',
+    redisState?.configured === true,
+    'Sans REDIS_URL, la limitation de débit ne compte que par instance — donc presque plus du tout ' +
+      'en serverless — et les emails repartent en envoi direct, sans réessai.',
+  );
+
+  expectInProduction(
+    'Redis est joignable',
+    redisState?.reachable === true,
+    'REDIS_URL est défini mais la connexion échoue. Vérifiez le mot de passe, ' +
+      'le pare-feu, et rediss:// si le fournisseur impose TLS.',
+  );
+
+  check(
+    'Redis ne conditionne pas la santé du service',
+    deepBody?.data?.status === 'ok',
+    'Une panne de cache ne doit jamais faire retirer une instance du pool.',
+  );
+
+  /*
+   * La limitation de débit est vérifiée par ses en-têtes plutôt qu'en la
+   * déclenchant : provoquer un dépassement sur une production réelle refuserait
+   * du trafic à de vrais utilisateurs le temps de la fenêtre.
+   */
+  const limited = await safeFetch(`${backend}/api/categories`);
+  check(
+    'Les réponses annoncent un quota de débit',
+    limited?.headers.has('x-ratelimit-limit') === true,
+    'Aucun en-tête X-RateLimit : les routes ne passent pas par withRoute.',
+  );
+
+  const internal = await safeFetch(`${backend}/api/internal/maintenance`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  check(
+    'Les routes internes refusent un appel non authentifié',
+    internal?.status === 401 || internal?.status === 403,
+    `statut ${internal?.status} — elles doivent être fermées sans X-Internal-Secret.`,
+  );
+
   /* --- Dashboard --------------------------------------------------------------- */
   if (dashboard) {
     console.log('\nDashboard');
