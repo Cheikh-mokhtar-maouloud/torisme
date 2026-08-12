@@ -1,5 +1,7 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
+import type { PlaceType } from '@tourism/shared/constants';
+
 /**
  * Types de navigation.
  *
@@ -32,6 +34,8 @@ export type RootStackParamList = {
   ExcursionBooking: { excursionId: string };
   ExcursionBookingConfirmation: { bookingId: string };
   ExcursionBookingDetail: { bookingId: string };
+  Favorites: undefined;
+  WriteReview: { targetType: PlaceType; targetId: string; targetName: string };
   EditProfile: undefined;
   ChangePassword: undefined;
   Login: { message?: string } | undefined;

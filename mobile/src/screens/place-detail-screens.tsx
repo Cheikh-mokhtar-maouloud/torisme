@@ -3,10 +3,12 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PlaceType } from '@tourism/shared/constants';
 import type { Attraction, Excursion, Restaurant } from '@tourism/shared/types';
 
 import { useAttractions, useExcursions, useRestaurants } from '../api/queries';
 import { Gallery } from '../components/gallery';
+import { FavoriteButton, ReviewsSection } from '../components/social';
 import { Badge, Button, Card, Chip, Divider, ErrorState, Rating, Skeleton } from '../components/ui';
 import { formatDateTime, formatDuration, formatMoney } from '../lib/format';
 import { colors, spacing, typography } from '../theme';
@@ -39,6 +41,9 @@ export function RestaurantDetailScreen() {
       city={restaurant?.address.city}
       country={restaurant?.address.country}
       description={restaurant?.description}
+      favorite={
+        restaurant ? { targetType: PlaceType.RESTAURANT, targetId: restaurant.id } : undefined
+      }
     >
       {restaurant ? (
         <>
@@ -63,6 +68,12 @@ export function RestaurantDetailScreen() {
               <Row label="Téléphone" value={restaurant.phone} />
             </Card>
           ) : null}
+
+          <ReviewsSection
+            targetType={PlaceType.RESTAURANT}
+            targetId={restaurant.id}
+            targetName={restaurant.name}
+          />
         </>
       ) : null}
     </PlaceLayout>
@@ -86,6 +97,9 @@ export function AttractionDetailScreen() {
       city={attraction?.address.city}
       country={attraction?.address.country}
       description={attraction?.description}
+      favorite={
+        attraction ? { targetType: PlaceType.ATTRACTION, targetId: attraction.id } : undefined
+      }
     >
       {attraction ? (
         <>
@@ -103,6 +117,12 @@ export function AttractionDetailScreen() {
               }
             />
           </Card>
+
+          <ReviewsSection
+            targetType={PlaceType.ATTRACTION}
+            targetId={attraction.id}
+            targetName={attraction.name}
+          />
         </>
       ) : null}
     </PlaceLayout>
@@ -126,6 +146,7 @@ export function ExcursionDetailScreen() {
       name={excursion?.title ?? route.params.title ?? ''}
       city={excursion?.destination}
       description={excursion?.description}
+      favorite={excursion ? { targetType: PlaceType.EXCURSION, targetId: excursion.id } : undefined}
     >
       {excursion ? (
         <>
@@ -178,6 +199,12 @@ export function ExcursionDetailScreen() {
             disabled={excursion.availableSeats === 0}
             style={styles.bookButton}
           />
+
+          <ReviewsSection
+            targetType={PlaceType.EXCURSION}
+            targetId={excursion.id}
+            targetName={excursion.title}
+          />
         </>
       ) : null}
     </PlaceLayout>
@@ -193,6 +220,7 @@ function PlaceLayout({
   city,
   country,
   description,
+  favorite,
   children,
 }: {
   isLoading: boolean;
@@ -203,6 +231,8 @@ function PlaceLayout({
   city?: string | undefined;
   country?: string | undefined;
   description?: string | undefined;
+  /** Absent tant que la fiche n'est pas chargée : on ne peut pas la mettre en favori. */
+  favorite?: { targetType: PlaceType; targetId: string } | undefined;
   children: React.ReactNode;
 }) {
   const insets = useSafeAreaInsets();
@@ -237,10 +267,17 @@ function PlaceLayout({
       <Gallery images={images} name={name} height={240} />
 
       <View style={styles.body}>
-        <Text style={styles.title}>{name}</Text>
-        {city ? (
-          <Text style={styles.location}>{country ? `${city}, ${country}` : city}</Text>
-        ) : null}
+        <View style={styles.titleRow}>
+          <View style={styles.titleText}>
+            <Text style={styles.title}>{name}</Text>
+            {city ? (
+              <Text style={styles.location}>{country ? `${city}, ${country}` : city}</Text>
+            ) : null}
+          </View>
+          {favorite ? (
+            <FavoriteButton targetType={favorite.targetType} targetId={favorite.targetId} />
+          ) : null}
+        </View>
         {description ? <Text style={styles.description}>{description}</Text> : null}
         {children}
       </View>
@@ -264,6 +301,8 @@ const styles = StyleSheet.create({
   body: { padding: spacing.lg, gap: spacing.xs },
   gap: { marginTop: spacing.sm },
 
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  titleText: { flex: 1 },
   title: { ...typography.h1, color: colors.text.primary },
   location: { ...typography.body, color: colors.text.secondary },
   description: {

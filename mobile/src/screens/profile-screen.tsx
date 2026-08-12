@@ -86,12 +86,13 @@ export function ProfileScreen() {
         />
       </Card>
 
+      <Text style={styles.sectionTitle}>Mes contenus</Text>
+      <Card style={styles.card}>
+        <ActionRow label="Mes favoris" onPress={() => navigation.navigate('Favorites')} />
+      </Card>
+
       <Text style={styles.sectionTitle}>À venir</Text>
       <Card style={styles.card}>
-        <Row label="Favoris" value="Phase 10" muted />
-        <Divider />
-        <Row label="Mes avis" value="Phase 10" muted />
-        <Divider />
         <Row label="Notifications" value="Phase 11" muted />
       </Card>
 

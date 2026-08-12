@@ -5,7 +5,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Room } from '@tourism/shared/types';
 
+import { PlaceType } from '@tourism/shared/constants';
+
 import { Gallery } from '../components/gallery';
+import { FavoriteButton, ReviewsSection } from '../components/social';
 import { PlaceImage } from '../components/place-image';
 import { Card, Chip, Divider, EmptyState, ErrorState, Rating, Skeleton } from '../components/ui';
 import { useHotel, useHotelRooms } from '../api/queries';
@@ -57,10 +60,15 @@ export function HotelDetailScreen() {
       <Gallery images={place.images} name={place.name} height={260} />
 
       <View style={styles.body}>
-        <Text style={styles.title}>{place.name}</Text>
-        <Text style={styles.location}>
-          {place.address.city}, {place.address.country}
-        </Text>
+        <View style={styles.titleRow}>
+          <View style={styles.titleText}>
+            <Text style={styles.title}>{place.name}</Text>
+            <Text style={styles.location}>
+              {place.address.city}, {place.address.country}
+            </Text>
+          </View>
+          <FavoriteButton targetType={PlaceType.HOTEL} targetId={place.id} />
+        </View>
 
         <View style={styles.metaRow}>
           <Rating value={place.rating} count={place.reviewCount} />
@@ -133,6 +141,8 @@ export function HotelDetailScreen() {
             ))}
           </View>
         )}
+
+        <ReviewsSection targetType={PlaceType.HOTEL} targetId={place.id} targetName={place.name} />
       </View>
     </ScrollView>
   );
@@ -186,6 +196,8 @@ const styles = StyleSheet.create({
   hero: { height: 240, width: '100%' },
   body: { padding: spacing.lg, gap: spacing.xs },
 
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  titleText: { flex: 1 },
   title: { ...typography.h1, color: colors.text.primary },
   location: { ...typography.body, color: colors.text.secondary },
   metaRow: {
