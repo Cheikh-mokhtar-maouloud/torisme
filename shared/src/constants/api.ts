@@ -82,9 +82,38 @@ export const ErrorCode = {
 } as const;
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 
-/** Événements Socket.IO (implémentés en Phase 12, déclarés ici pour figer le contrat). */
+/**
+ * Événements temps réel.
+ *
+ * Les noms sont partagés par le service Socket.IO, le backend qui publie et les
+ * clients qui écoutent : une chaîne recopiée à trois endroits finirait par
+ * diverger, et un événement mal nommé n'échoue pas — il n'arrive simplement
+ * jamais.
+ */
 export const SOCKET_EVENTS = {
   BOOKING_UPDATED: 'booking:updated',
   EXCURSION_SEATS_UPDATED: 'excursion:seats-updated',
   NOTIFICATION_NEW: 'notification:new',
+  /** Événements destinés à l'administration : nouvelle demande, avis signalé… */
+  ADMIN_ACTIVITY: 'admin:activity',
 } as const;
+
+export type SocketEvent = (typeof SOCKET_EVENTS)[keyof typeof SOCKET_EVENTS];
+
+/**
+ * Salles Socket.IO.
+ *
+ * Un client ne rejoint que la salle de son propre compte : le cloisonnement est
+ * assuré par l'appartenance aux salles, pas par un filtrage côté client, qui
+ * reviendrait à diffuser à tous et à demander poliment d'ignorer.
+ */
+export const SOCKET_ROOMS = {
+  user: (userId: string) => `user:${userId}`,
+  admins: 'admins',
+} as const;
+
+/** Charge utile d'un événement temps réel. */
+export interface RealtimeEvent<TPayload = Record<string, unknown>> {
+  event: SocketEvent;
+  payload: TPayload;
+}

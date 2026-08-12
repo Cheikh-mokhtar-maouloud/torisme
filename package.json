@@ -6,6 +6,7 @@
   "workspaces": [
     "shared",
     "backend",
+    "realtime",
     "dashboard",
     "mobile"
   ],
@@ -21,7 +22,8 @@
     "lint": "npm run lint --workspaces --if-present",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify:deployment": "node scripts/verify-deployment.mjs"
+    "verify:deployment": "node scripts/verify-deployment.mjs",
+    "dev:realtime": "npm run dev --workspace realtime"
   },
   "devDependencies": {
     "prettier": "^3.4.2"
