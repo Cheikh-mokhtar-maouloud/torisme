@@ -15,7 +15,8 @@
     "test:concurrency": "node scripts/concurrency-test.mjs",
     "test:auth": "node scripts/auth-test.mjs",
     "test:excursions": "node scripts/excursion-test.mjs",
-    "test:reviews": "node scripts/review-test.mjs"
+    "test:reviews": "node scripts/review-test.mjs",
+    "test:notifications": "node scripts/notification-test.mjs"
   },
   "dependencies": {
     "@tourism/shared": "*",
