@@ -1,0 +1,30 @@
+{
+  "name": "worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Worker BullMQ — emails, rappels d'excursion, entretien périodique",
+  "main": "dist/worker.js",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/worker.ts",
+    "build": "tsc",
+    "start": "node --env-file=.env dist/worker.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test:worker": "node --env-file=.env scripts/worker-test.mjs"
+  },
+  "dependencies": {
+    "@tourism/shared": "*",
+    "bullmq": "^5.63.0",
+    "ioredis": "^5.9.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^20",
+    "eslint": "^9.39.5",
+    "globals": "^17.11.0",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.67.0"
+  }
+}
