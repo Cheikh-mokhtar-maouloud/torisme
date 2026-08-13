@@ -1,15 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -163,11 +155,20 @@ export function MapScreen() {
       </MapView>
 
       <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filters}
-        >
+        {/*
+          Retour à la ligne automatique, et non défilement horizontal.
+          
+          Quatre libellés de cette longueur ne tiennent pas sur 360 points de
+          large : le dernier sortait de l'écran. Un défilement horizontal le
+          rendait atteignable, mais **invisible** — rien n'indique qu'il existe
+          un quatrième filtre, et un utilisateur ne cherche pas à faire glisser
+          une rangée qui paraît complète.
+          
+          Avec `flexWrap`, les pastilles passent à la ligne quand il le faut et
+          se remettent sur une seule rangée dès que la largeur le permet. La
+          disposition s'adapte à l'écran au lieu de le supposer.
+        */}
+        <View style={styles.filters}>
           {ALL_TYPES.map((type) => {
             const isActive = activeTypes.includes(type);
             const count = data?.countsByType[type] ?? 0;
@@ -201,7 +202,7 @@ export function MapScreen() {
               </Pressable>
             );
           })}
-        </ScrollView>
+        </View>
       </View>
 
       {isFetching ? (
@@ -298,6 +299,8 @@ const styles = StyleSheet.create({
 
   topBar: { position: 'absolute', left: 0, right: 0, top: 0 },
   filters: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: layout.screenPadding,
     gap: spacing.sm,
     paddingBottom: spacing.sm,
