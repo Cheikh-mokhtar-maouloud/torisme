@@ -313,6 +313,226 @@ aujourd'hui, et il n'y a pas encore de serveur à configurer. WAF et protection
 DDoS relèvent de la Phase 16, puisqu'ils se placent devant une infrastructure
 qui n'existe pas encore.
 
+# Phase 15 — Migration vers un serveur propre
+
+## Pourquoi partir de Vercel
+
+Ce n'est pas une préférence. Depuis la Phase 12, deux services **n'ont aucun
+hébergement possible** en serverless :
+
+- `realtime` maintient des connexions WebSocket ouvertes ;
+- `worker` consomme une file en continu et exécute des tâches différées.
+
+Vercel coupe les exécutions longues par construction. Jusqu'ici ces deux
+services tournaient sur le poste de développement, ce qui n'est pas un
+déploiement.
+
+S'y ajoutent trois gains : MongoDB et Redis sur le même hôte que l'API
+(latence divisée), un pool de connexions dimensionné pour une instance unique au
+lieu de dizaines d'instances éphémères, et un coût prévisible.
+
+## Topologie
+
+```
+                 Internet
+                    │
+              ┌─────┴─────┐   80 → 443, ACME
+              │   nginx   │   TLS, limitation de bordure
+              └─────┬─────┘
+        ┌───────────┼───────────┐
+        │           │           │
+    backend    dashboard    realtime          worker
+        │           │           │                │
+        └─────┬─────┴───────────┴────────┬───────┘
+              │                          │
+          ┌───┴───┐                  ┌───┴───┐
+          │ mongo │                  │ redis │
+          └───────┘                  └───────┘
+```
+
+**Seul Nginx publie des ports.** MongoDB et Redis n'en publient aucun : ils ne
+sont joignables que par le réseau interne de Docker. Publier 27017 « pour
+déboguer » est la première cause d'exposition de bases MongoDB sur Internet.
+
+## Les images
+
+| Image | Base | Taille | Particularité |
+| ----- | ---- | ------ | ------------- |
+| backend, dashboard | `node:20-alpine` | ~310 Mo | Sortie `standalone` de Next |
+| realtime, worker | `node:20-alpine` | ~230 Mo | `npm ci --omit=dev` |
+
+Trois choix méritent d'être explicités.
+
+**Le workspace `mobile` est exclu des images serveur.** Il n'a rien à y faire, et
+c'est lui qui porte la chaîne Expo/Metro — donc les vulnérabilités recensées par
+`audit:deps`. Les installer les ferait entrer en production alors qu'aucun code
+ne les appelle.
+
+**Sortie `standalone`.** Next produit un `server.js` accompagné des seules
+dépendances réellement atteintes. Quelques centaines de méga-octets au lieu de
+plus d'un giga, et une surface d'attaque réduite à ce qui sert.
+
+**`tini` comme PID 1.** Sans init, Node reçoit le PID 1 et n'hérite pas des
+gestionnaires de signaux par défaut : `docker stop` envoie SIGTERM, personne ne
+l'écoute, et le conteneur est tué au bout du délai de grâce — au milieu d'une
+requête.
+
+Les conteneurs tournent sous un utilisateur non privilégié : une exécution de
+code arbitraire y obtient les droits de `nextjs`, pas ceux de root.
+
+## Mise en service
+
+```bash
+# 1. Préparation du serveur (une seule fois)
+./scripts/provision-vps.sh admin@exemple.mr
+
+# 2. Configuration
+cp .env.example .env && $EDITOR .env
+
+# 3. Certificats — Nginx doit déjà écouter sur 80 pour le défi ACME
+docker compose up -d nginx
+docker run --rm -v ./docker/nginx/certs:/etc/letsencrypt -v certbot-www:/var/www/certbot   certbot/certbot certonly --webroot -w /var/www/certbot   --email admin@exemple.mr --agree-tos -d api.exemple.mr -d admin.exemple.mr -d ws.exemple.mr
+
+# 4. Démarrage
+npm run stack:up
+
+# 5. Vérification
+npm run verify:deployment https://api.exemple.mr https://admin.exemple.mr
+```
+
+## Sauvegardes
+
+```bash
+npm run backup                              # quotidien, par cron
+bash scripts/restore.sh --dry-run backups/… # vérification
+bash scripts/restore.sh backups/…           # restauration réelle
+```
+
+**Une sauvegarde jamais restaurée n'est pas une sauvegarde, c'est une
+hypothèse.** `--dry-run` rejoue l'archive dans une base jetable, compte les
+documents, puis la supprime — sans toucher à la production.
+
+Deux garde-fous méritent d'être connus :
+
+- La rétention est appliquée **après** contrôle de la nouvelle archive. Purger
+  d'abord reviendrait à détruire les seules sauvegardes utilisables si le dump
+  du jour a échoué.
+- Une archive vide fait échouer le script. `mongodump` peut renvoyer 0 en
+  produisant un fichier vide — base inexistante, nom mal orthographié — et une
+  sauvegarde vide qui se déclare réussie est pire que pas de sauvegarde.
+
+La restauration réelle exige de retaper le nom de la base. `--drop` remplace les
+collections : restaurer par erreur une archive de la veille effacerait une
+journée de réservations, sans retour possible.
+
+## Scripts d'exploitation dans l'image
+
+`create-admin` et `seed` sont écrits en TypeScript et lancés par `tsx` en
+développement. L'image d'exécution n'a ni TypeScript ni `tsx` : ils sont donc
+compilés en JavaScript autonome dans `dist-ops`.
+
+Sans cette étape, **il serait impossible de créer le premier administrateur sur
+le serveur** — la plateforme se déploierait sans que personne ne puisse s'y
+connecter. Le défaut ne se serait vu qu'au premier déploiement réel.
+
+Le bundle n'externalise **rien**, pas même `mongoose` ou `zod` : les scripts
+pèsent 3 Mo mais s'exécutent sans dépendre du `node_modules` de la sortie
+standalone, dont le contenu est décidé par l'analyse de Next et ne couvre que ce
+que le serveur atteint. Un script d'exploitation qui échoue sur un `Cannot find
+module` au moment de créer le premier compte est précisément ce qu'on ne peut
+pas se permettre.
+
+```bash
+docker compose exec backend node backend/dist-ops/create-admin.js
+docker compose exec backend node backend/dist-ops/seed.js   # jeu de démonstration
+```
+
+## Vérifier la pile
+
+```bash
+bash scripts/test-stack.sh
+```
+
+Deux niveaux, délibérément séparés :
+
+- **Les applications**, jointes par le réseau interne (`http://backend:3000`),
+  ce que voient réellement le dashboard et le worker ;
+- **La bordure Nginx**, jointe en HTTPS depuis l'hôte, ce que voit un client.
+
+Les mélanger masquerait la moitié des pannes possibles : une image cassée
+derrière un Nginx correct, ou l'inverse.
+
+### Faire tourner les suites applicatives contre la pile
+
+```bash
+export NODE_TLS_REJECT_UNAUTHORIZED=0        # certificat auto-signé, poste local uniquement
+SMOKE_BASE_URL=https://localhost npm run smoke --workspace backend
+SMOKE_BACKEND_URL=https://localhost npm run test:journey --workspace mobile
+```
+
+`https://localhost` atteint le bloc de l'API : c'est le premier hôte virtuel
+déclaré sur le port 443, donc celui que Nginx sert par défaut lorsque le nom
+demandé ne correspond à aucun autre.
+
+Joindre le dashboard par son nom exigerait une entrée dans le fichier `hosts`,
+donc les droits administrateur. Le contourner en publiant son port
+reviendrait à tester une topologie qui n'existe pas en production ; sa suite se
+lance donc depuis le réseau interne :
+
+```bash
+docker compose run --rm --no-deps --entrypoint sh   -e SMOKE_DASHBOARD_URL=http://dashboard:3000   -e SMOKE_BACKEND_URL=http://backend:3000   backend -c "node /app/…"
+```
+
+`NODE_TLS_REJECT_UNAUTHORIZED=0` ne doit jamais quitter le poste de
+développement : la variable désactive toute vérification de certificat, donc la
+protection contre l'interception.
+
+## Six pannes réelles trouvées par la conteneurisation
+
+Ces défauts existaient déjà dans le code ; ils étaient invisibles parce que le
+développement ne s'exécute ni sous un utilisateur non privilégié, ni depuis un
+`node dist/`, ni derrière un proxy.
+
+| Panne | Ce qu'elle aurait coûté |
+| ----- | ----------------------- |
+| `realtime` et `worker` ne démarraient **jamais** hors de `tsx` : leurs imports de `@tourism/shared` pointaient sur du TypeScript | Les deux services n'auraient pas démarré au premier déploiement |
+| Nginx résolvait ses upstreams au chargement | Un service absent empêchait Nginx de démarrer *entièrement* : une panne en provoquait trois |
+| `create-admin` inexécutable dans l'image | Plateforme déployée sans que personne ne puisse s'y connecter |
+| Volume `uploads` créé sous root, conteneur exécuté sous l'uid 1001 | Chaque téléversement de photo en « permission denied » |
+| Compose transmet une variable vide comme `""`, refusé par Zod | Refus de démarrage à cause d'un secret volontairement non renseigné |
+| Nginx renvoyait du **HTML** sur un dépassement de quota | Tout client analysant le JSON échouait sur une erreur de syntaxe au lieu de comprendre qu'il doit ralentir |
+
+Une septième, plus insidieuse, concerne l'outillage : Prettier inférait un
+parseur pour les fichiers `.inc` de Nginx et fusionnait les commentaires avec les
+directives. Le fichier restait plausible à l'œil ; seul `nginx -t` le révélait.
+`docker/nginx/**` est désormais exclu du formatage.
+
+## Ce qui n'a pas pu être vérifié
+
+Tout le reste de cette phase a été exécuté : images construites, pile démarrée,
+suites de tests passées contre les conteneurs, restauration réellement rejouée.
+**Ces points-là ne l'ont pas été**, faute de serveur :
+
+| Élément | Pourquoi |
+| ------- | -------- |
+| Émission Let's Encrypt | Exige un domaine public et le port 80 accessible depuis Internet |
+| `ufw`, `fail2ban`, durcissement SSH | Modifient le pare-feu et l'accès d'une vraie machine |
+| DNS | Aucun domaine enregistré |
+
+Les certificats locaux sont **auto-signés** : ils prouvent que la terminaison
+TLS et le routage fonctionnent, pas qu'une autorité de certification les
+accepterait.
+
+Gardez une session SSH ouverte pendant `provision-vps.sh`. Si la configuration
+vous verrouille dehors, seule une session déjà établie permet de revenir.
+
+## Retour arrière
+
+Vercel reste déployable tant que le DNS n'a pas basculé. La bascule se fait par
+le DNS, pas par le code : en cas de problème, on repointe les enregistrements et
+la Phase 4 reprend du service. Les données, elles, ont bougé — d'où l'importance
+d'avoir restauré une sauvegarde **avant** de basculer.
+
 # Phases suivantes
 
 ## Phase 15 — Migration vers un VPS

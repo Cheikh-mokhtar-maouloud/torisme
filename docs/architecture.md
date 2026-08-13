@@ -69,7 +69,8 @@ L'architecture cible est construite par étapes, pas d'emblée :
 | Départ         | Vercel (backend + dashboard) + MongoDB Atlas         | 4     |
 | Temps réel     | Socket.IO sur serveur Node dédié                     | 12 ✅ |
 | Asynchrone     | Redis + BullMQ, workers séparés de l'API             | 13 ✅ |
-| Serveur propre | VPS Ubuntu + Docker + Nginx                          | 15    |
+| Sécurité       | En-têtes navigateur, rotation de secrets, audit       | 14 ✅ |
+| Serveur propre | VPS Ubuntu + Docker + Nginx                          | 15 ✅ |
 | Échelle        | Cloudflare (CDN/WAF) + load balancer + N instances   | 16    |
 
 Contrainte à respecter dès maintenant pour que cette évolution reste possible :
@@ -203,6 +204,27 @@ départagent réellement.
 excursion passée restait « Programmée ». C'est le premier traitement de la
 plateforme sans déclencheur utilisateur — il lui fallait un ordonnanceur, et
 c'est pourquoi il arrive seulement maintenant.
+
+## Hébergement (Phase 15)
+
+Le passage à un serveur propre n'est pas une préférence : depuis la Phase 12,
+`realtime` et `worker` **n'avaient aucun hébergement possible**. Vercel coupe
+les exécutions longues par construction, alors que l'un maintient des WebSockets
+et l'autre consomme une file en continu.
+
+Six conteneurs, un seul réseau, **un seul service qui publie des ports**. MongoDB
+et Redis ne sont joignables que de l'intérieur ; c'est ce qui rend inutile toute
+règle de pare-feu à leur sujet.
+
+La contrainte posée en Phase 4 — « le backend doit rester sans état » — se
+révèle ici payante : la migration n'a demandé aucune modification du code
+applicatif, seulement un empaquetage. Aucune session, aucun compteur, aucun
+cache ne vivait en mémoire de processus.
+
+Détail à ne pas défaire : **Nginx n'ajoute aucun en-tête de sécurité au
+dashboard**. Celui-ci émet sa propre CSP avec un nonce régénéré à chaque réponse
+(Phase 14), que Nginx ne peut pas produire ; un `add_header` de sa part
+remplacerait celui de l'application et casserait la page.
 
 ## Contrat d'API
 

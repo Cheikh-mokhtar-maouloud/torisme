@@ -320,3 +320,32 @@ volontaire, un secret manquant doit échouer au démarrage et non au premier app
 
 **Erreurs de résolution après ajout d'une dépendance mobile** — vider le cache Metro :
 `npx expo start --clear`.
+
+## Lancer la pile conteneurisée
+
+Le mode ci-dessus (chaque service en `npm run dev`) reste le plus rapide pour
+développer. La pile Docker sert à **vérifier ce qui partira en production** :
+mêmes images, même réseau, même Nginx.
+
+```bash
+cp .env.example .env      # renseigner les secrets
+npm run stack:up          # construit et démarre les six conteneurs
+npm run stack:ps          # état et santé
+npm run stack:logs        # journaux agrégés
+npm run stack:down        # arrêt (les volumes sont conservés)
+```
+
+Les tests s'exécutent contre la pile en pointant les scripts vers Nginx :
+
+```bash
+SMOKE_BASE_URL=https://api.localhost npm run smoke --workspace backend
+```
+
+En local, les certificats sont **auto-signés** : `NODE_TLS_REJECT_UNAUTHORIZED=0`
+est nécessaire pour que Node accepte la connexion. Cette variable ne doit jamais
+sortir du poste de développement — elle désactive toute vérification de
+certificat, donc la protection contre l'interception.
+
+> Les volumes survivent à `stack:down`. Pour repartir d'une base vide :
+> `docker compose down -v`, qui **efface les données** — y compris les
+> sauvegardes non exportées.
