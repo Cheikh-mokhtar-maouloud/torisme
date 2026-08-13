@@ -13,8 +13,9 @@ import {
   RestaurantCard,
 } from '../components/cards';
 import { ErrorState } from '../components/ui';
+import { Icon, type IconName } from '../components/icon';
 import { useAttractions, useExcursions, useHotels, useRestaurants } from '../api/queries';
-import { colors, radius, spacing, typography } from '../theme';
+import { colors, layout, radius, spacing, typography } from '../theme';
 import { formatMoney } from '../lib/format';
 import type { PlaceTab, RootStackParamList } from '../navigation/types';
 
@@ -58,7 +59,7 @@ export function HomeScreen() {
         onPress={() => goToExplore('hotels')}
         style={({ pressed }) => [styles.searchBar, pressed && styles.pressed]}
       >
-        <Text style={styles.searchIcon}>⌕</Text>
+        <Icon name="search" size={19} color={colors.text.muted} />
         <Text style={styles.searchPlaceholder}>Rechercher une destination…</Text>
       </Pressable>
 
@@ -70,7 +71,9 @@ export function HomeScreen() {
             onPress={() => goToExplore(category.type)}
             style={({ pressed }) => [styles.category, pressed && styles.pressed]}
           >
-            <Text style={styles.categoryIcon}>{category.icon}</Text>
+            <View style={styles.categoryIcon}>
+              <Icon name={category.icon} size={21} color={colors.text.primary} />
+            </View>
             <Text style={styles.categoryLabel}>{category.label}</Text>
           </Pressable>
         ))}
@@ -173,11 +176,11 @@ export function HomeScreen() {
   );
 }
 
-const CATEGORIES: { type: PlaceTab; label: string; icon: string }[] = [
-  { type: 'hotels', label: 'Hôtels', icon: '🏨' },
-  { type: 'attractions', label: 'Sites', icon: '🏛️' },
-  { type: 'excursions', label: 'Excursions', icon: '🐫' },
-  { type: 'restaurants', label: 'Restaurants', icon: '🍽️' },
+const CATEGORIES: { type: PlaceTab; label: string; icon: IconName }[] = [
+  { type: 'hotels', label: 'Hôtels', icon: 'hotel' },
+  { type: 'attractions', label: 'Sites', icon: 'attraction' },
+  { type: 'excursions', label: 'Excursions', icon: 'excursion' },
+  { type: 'restaurants', label: 'Restaurants', icon: 'restaurant' },
 ];
 
 /**
@@ -233,44 +236,56 @@ function Section({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.surface.subtle },
+  // Fond blanc, non gris. Dans une mise en page éditoriale, les fiches ne sont
+  // pas des cartes posées sur un fond : elles sont la page. Un fond gris
+  // obligerait à les enfermer dans des rectangles blancs pour les détacher.
+  screen: { flex: 1, backgroundColor: colors.surface.background },
   content: { paddingBottom: spacing.xl },
   pressed: { opacity: 0.8 },
 
-  header: { paddingHorizontal: spacing.lg, marginBottom: spacing.lg },
+  header: {
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing.sm,
+    marginBottom: spacing.xl,
+  },
   eyebrow: {
-    ...typography.caption,
-    color: colors.brand[700],
-    fontWeight: '600',
-    letterSpacing: 1,
+    ...typography.overline,
+    color: colors.text.muted,
     textTransform: 'uppercase',
   },
-  heading: { ...typography.h1, color: colors.text.primary, marginTop: spacing.xs },
+  heading: { ...typography.display, color: colors.text.primary, marginTop: spacing.sm },
 
   searchBar: {
-    marginHorizontal: spacing.lg,
+    marginHorizontal: layout.screenPadding,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.surface.background,
-    borderRadius: radius.full,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.surface.border,
+    gap: spacing.md,
+    backgroundColor: colors.neutral[100],
+    borderRadius: radius.lg,
     paddingHorizontal: spacing.lg,
     height: 52,
   },
-  searchIcon: { fontSize: 20, color: colors.text.muted },
   searchPlaceholder: { ...typography.body, color: colors.text.muted },
 
   categories: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    marginTop: spacing.lg,
+    paddingHorizontal: layout.screenPadding,
+    marginTop: spacing.xl,
   },
-  category: { alignItems: 'center', gap: spacing.xs, flex: 1 },
-  categoryIcon: { fontSize: 26 },
-  categoryLabel: { ...typography.caption, color: colors.text.secondary, fontWeight: '500' },
+  category: { alignItems: 'center', gap: spacing.sm, flex: 1 },
+  // L'icône est posée dans un cercle gris clair : à cette taille, un trait fin
+  // isolé sur du blanc se perd. Le disque lui donne une surface et aligne les
+  // quatre catégories sur une même grille, quel que soit le dessin.
+  categoryIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.full,
+    backgroundColor: colors.neutral[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryLabel: { ...typography.caption, color: colors.text.secondary, fontWeight: '600' },
 
   section: { marginTop: spacing.xxl },
   sectionHeader: {

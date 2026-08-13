@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { colors, radius, spacing, typography } from '../theme';
+import { Icon } from './icon';
 
 /* -------------------------------------------------------------------------- */
 /* Boutons                                                                     */
@@ -152,7 +153,13 @@ export function Rating({ value, count }: { value: number; count: number }) {
 
   return (
     <View style={styles.ratingRow}>
-      <Text style={styles.ratingStar}>★</Text>
+      {/*
+        Étoile vectorielle et non le caractère « ★ ». Le glyphe dépend de la
+        police du système : son dessin, sa graisse et sa position sur la ligne
+        de base changent d'un téléphone à l'autre, et il ne s'aligne jamais
+        proprement avec le chiffre qui le suit.
+      */}
+      <Icon name="star" size={13} color={colors.sand[500]} />
       <Text style={styles.ratingValue}>{value.toFixed(1)}</Text>
       <Text style={styles.ratingCount}>({count})</Text>
     </View>
@@ -253,83 +260,104 @@ export function Divider() {
 }
 
 const styles = StyleSheet.create({
+  /*
+   * Bouton : 52 points de haut.
+   *
+   * La recommandation d'accessibilité fixe 44 comme minimum absolu ; 52 donne
+   * une cible confortable au pouce et, surtout, une présence visuelle qui
+   * convient à une action principale. Un bouton de 48 dans une page aérée
+   * paraît timide.
+   */
   button: {
-    minHeight: 48,
-    borderRadius: radius.md,
+    minHeight: 52,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
   },
   buttonPrimary: { backgroundColor: colors.brand[600] },
   buttonSecondary: {
-    backgroundColor: colors.surface.background,
-    borderWidth: 1,
-    borderColor: colors.surface.border,
+    // Fond plein plutôt que bordure : une bordure fine crée une ligne de plus
+    // dans une page qui cherche justement à en avoir le moins possible.
+    backgroundColor: colors.neutral[100],
   },
   buttonGhost: { backgroundColor: 'transparent' },
-  buttonPressed: { opacity: 0.75 },
-  buttonDisabled: { opacity: 0.45 },
-  buttonLabel: { ...typography.body, fontWeight: '600' },
+  buttonPressed: { opacity: 0.7 },
+  buttonDisabled: { opacity: 0.4 },
+  buttonLabel: { ...typography.bodyStrong, letterSpacing: 0.1 },
   buttonLabelPrimary: { color: colors.text.inverse },
-  buttonLabelDark: { color: colors.brand[700] },
+  buttonLabelDark: { color: colors.text.primary },
 
-  field: { gap: spacing.xs },
+  field: { gap: spacing.sm },
   fieldLabel: { ...typography.caption, color: colors.text.secondary, fontWeight: '600' },
   fieldError: { ...typography.caption, color: colors.status.danger },
+  /*
+   * Champ de saisie **sans bordure**, distingué par un fond gris très clair.
+   *
+   * La bordure de 1 point est le réflexe des interfaces d'il y a dix ans : elle
+   * dessine un rectangle dur là où le regard n'a besoin que de repérer une
+   * zone. Le fond suffit, et disparaît visuellement dès qu'on ne le cherche pas.
+   */
   input: {
-    minHeight: 48,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.surface.border,
-    backgroundColor: colors.surface.background,
-    paddingHorizontal: spacing.md,
+    minHeight: 52,
+    borderRadius: radius.lg,
+    borderWidth: 0,
+    backgroundColor: colors.neutral[100],
+    paddingHorizontal: spacing.lg,
     ...typography.body,
     color: colors.text.primary,
   },
-  inputInvalid: { borderColor: colors.status.danger },
+  // L'erreur reste signalée par un trait : c'est le seul cas où la bordure
+  // porte une information que la couleur de fond ne transmettrait pas assez.
+  inputInvalid: { borderWidth: 1.5, borderColor: colors.status.danger },
 
   card: {
     backgroundColor: colors.surface.background,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     overflow: 'hidden',
   },
 
   chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
     borderRadius: radius.full,
-    backgroundColor: colors.surface.subtle,
-    borderWidth: 1,
-    borderColor: colors.surface.border,
+    backgroundColor: colors.neutral[100],
   },
-  chipSelected: { backgroundColor: colors.brand[600], borderColor: colors.brand[600] },
-  chipLabel: { ...typography.caption, color: colors.text.secondary, fontWeight: '500' },
+  // Sélection en gris très foncé plutôt qu'en couleur de marque : le teal reste
+  // réservé aux actions, et le contraste noir/blanc se lit mieux qu'un teal sur
+  // blanc à cette taille de texte.
+  chipSelected: { backgroundColor: colors.neutral[900] },
+  chipLabel: { ...typography.caption, color: colors.text.secondary, fontWeight: '600' },
   chipLabelSelected: { color: colors.text.inverse },
 
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  ratingStar: { color: colors.sand[500], fontSize: 14 },
-  ratingValue: { ...typography.caption, color: colors.text.primary, fontWeight: '600' },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  ratingValue: { ...typography.caption, color: colors.text.primary, fontWeight: '700' },
   ratingCount: { ...typography.caption, color: colors.text.muted },
   ratingEmpty: { ...typography.caption, color: colors.text.muted },
 
-  stateContainer: { alignItems: 'center', padding: spacing.xl, gap: spacing.sm },
+  stateContainer: { alignItems: 'center', paddingVertical: spacing.xxxl, gap: spacing.sm },
   stateTitle: { ...typography.h3, color: colors.text.primary, textAlign: 'center' },
-  stateMessage: { ...typography.body, color: colors.text.secondary, textAlign: 'center' },
-  stateAction: { marginTop: spacing.md, minWidth: 180 },
+  stateMessage: {
+    ...typography.body,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    maxWidth: 280,
+  },
+  stateAction: { marginTop: spacing.lg, minWidth: 200 },
 
-  skeleton: { backgroundColor: colors.surface.border, borderRadius: radius.sm, opacity: 0.6 },
+  skeleton: { backgroundColor: colors.neutral[100], borderRadius: radius.md },
 
   badge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
     borderRadius: radius.full,
     alignSelf: 'flex-start',
   },
-  badge_neutral: { backgroundColor: colors.surface.subtle },
+  badge_neutral: { backgroundColor: colors.neutral[100] },
   badge_success: { backgroundColor: '#dcfce7' },
   badge_warning: { backgroundColor: '#fef3c7' },
   badge_danger: { backgroundColor: '#fee2e2' },
-  badgeLabel: { ...typography.caption, fontWeight: '600', fontSize: 12 },
+  badgeLabel: { fontSize: 12, lineHeight: 16, fontWeight: '700', letterSpacing: 0.2 },
   badgeLabel_neutral: { color: colors.text.secondary },
   badgeLabel_success: { color: '#166534' },
   badgeLabel_warning: { color: '#92400e' },

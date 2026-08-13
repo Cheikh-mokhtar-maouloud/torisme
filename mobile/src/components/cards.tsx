@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Attraction, Excursion, Hotel, Restaurant } from '@tourism/shared/types';
 
-import { colors, radius, spacing, typography } from '../theme';
+import { colors, layout, radius, spacing, typography } from '../theme';
 import { formatMoney, formatShortDate } from '../lib/format';
 import { PlaceImage } from './place-image';
 import { Badge, Card, Rating, Skeleton } from './ui';
@@ -26,7 +26,7 @@ export function HotelCard({ hotel, onPress }: { hotel: Hotel; onPress: () => voi
     >
       <Card style={styles.wideCard}>
         <View style={styles.wideImage}>
-          <PlaceImage images={hotel.images} name={hotel.name} rounded={false} />
+          <PlaceImage images={hotel.images} name={hotel.name} style={styles.photo} />
         </View>
 
         <View style={styles.wideBody}>
@@ -81,7 +81,7 @@ export function CompactCard({
       style={({ pressed }) => [styles.compactCard, pressed && styles.pressed]}
     >
       <View style={styles.compactImage}>
-        <PlaceImage images={images} name={name} rounded={false} />
+        <PlaceImage images={images} name={name} style={styles.photo} />
       </View>
       <View style={styles.compactBody}>
         <Text style={styles.compactTitle} numberOfLines={1}>
@@ -159,7 +159,7 @@ export function ExcursionCard({
       style={({ pressed }) => [styles.compactCard, pressed && styles.pressed]}
     >
       <View style={styles.compactImage}>
-        <PlaceImage images={excursion.images} name={excursion.title} rounded={false} />
+        <PlaceImage images={excursion.images} name={excursion.title} style={styles.photo} />
       </View>
       <View style={styles.compactBody}>
         <Text style={styles.compactTitle} numberOfLines={2}>
@@ -210,9 +210,32 @@ export function CompactCardSkeleton() {
 const styles = StyleSheet.create({
   pressed: { opacity: 0.85 },
 
-  wideCard: { borderWidth: StyleSheet.hairlineWidth, borderColor: colors.surface.border },
-  wideImage: { height: 160, width: '100%' },
-  wideBody: { padding: spacing.md, gap: spacing.xs },
+  /*
+   * Le rayon est porté par l'image elle-même, et pas seulement par son
+   * conteneur. Sous Android, `overflow: hidden` ne découpe pas de façon fiable
+   * une vue native comme celle d'`expo-image` : les coins restent carrés alors
+   * que la feuille de style paraît correcte, ce qui est particulièrement
+   * déroutant à relire.
+   */
+  photo: { borderRadius: radius.xl },
+
+  /*
+   * Fiche large **sans bordure ni fond**.
+   *
+   * C'est le cœur du parti pris éditorial : l'image porte la fiche, le texte se
+   * pose dessous sur la page. Enfermer l'ensemble dans un rectangle blanc bordé
+   * ajoute deux lignes et une ombre pour délimiter ce que l'image délimitait
+   * déjà — et fait ressembler la liste à un tableau.
+   */
+  wideCard: { backgroundColor: 'transparent', borderRadius: 0 },
+  /*
+   * `overflow: hidden` est indispensable : le rayon est porté par ce conteneur,
+   * pas par l'image qu'il contient. Sans lui, la photo déborde aux quatre coins
+   * et l'arrondi n'a aucun effet visible — le défaut est discret sur une image
+   * sombre, flagrant sur une image claire.
+   */
+  wideImage: { height: 200, width: '100%', borderRadius: radius.xl, overflow: 'hidden' },
+  wideBody: { paddingTop: spacing.md, gap: 3 },
 
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   title: { ...typography.h3, color: colors.text.primary, flexShrink: 1 },
@@ -225,21 +248,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: spacing.xs,
   },
-  price: { ...typography.body, color: colors.text.primary, fontWeight: '700' },
+  price: { ...typography.bodyStrong, color: colors.text.primary },
   priceUnit: { ...typography.caption, color: colors.text.muted, fontWeight: '400' },
 
+  // Même principe pour le carrousel : l'image seule, arrondie, le texte dessous.
+  // La largeur passe de 210 à 280 — une vignette étroite oblige à couper les
+  // noms de lieux, et « Hôtel Atlantique Nou… » n'apprend rien.
   compactCard: {
-    width: 210,
-    backgroundColor: colors.surface.background,
-    borderRadius: radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.surface.border,
-    overflow: 'hidden',
+    width: layout.cardWidth,
+    backgroundColor: 'transparent',
+    overflow: 'visible',
   },
-  compactImage: { height: 110, width: '100%' },
-  compactSkeletonImage: { borderRadius: 0 },
-  compactBody: { padding: spacing.md, gap: 2 },
-  compactTitle: { ...typography.body, fontWeight: '600', color: colors.text.primary },
+  compactImage: { height: 190, width: '100%', borderRadius: radius.xl, overflow: 'hidden' },
+  compactSkeletonImage: { borderRadius: radius.xl },
+  compactBody: { paddingTop: spacing.md, gap: 3 },
+  compactTitle: { ...typography.bodyStrong, color: colors.text.primary },
   compactFooter: { ...typography.caption, color: colors.text.secondary, fontWeight: '600' },
   compactFooterRow: {
     flexDirection: 'row',

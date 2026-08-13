@@ -1,8 +1,9 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { colors, typography } from '../theme';
+import { Icon, type IconName } from '../components/icon';
 import { ExploreScreen } from '../screens/explore-screen';
 import { HomeScreen } from '../screens/home-screen';
 import { MapScreen } from '../screens/map-screen';
@@ -32,18 +33,20 @@ const Tab = createBottomTabNavigator<TabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 /**
- * Icônes en emoji.
+ * Icônes de la barre d'onglets.
  *
- * Aucune police d'icônes ni bibliothèque supplémentaire : les emoji sont rendus
- * nativement sur les deux plateformes. Un jeu d'icônes vectorielles cohérent
- * viendra avec l'identité graphique définitive.
+ * Les emoji employés jusqu'ici ont été remplacés par un jeu vectoriel. Un emoji
+ * est rendu par la police du système : son dessin change d'un téléphone à
+ * l'autre, il ignore la teinte demandée — donc l'onglet actif ne se distingue
+ * plus de l'inactif autrement que par le libellé — et son gabarit ne s'aligne
+ * pas sur celui du texte.
  */
-const TAB_ICONS: Record<keyof TabParamList, string> = {
-  Home: '🏠',
-  Explore: '🔍',
-  Map: '🗺️',
-  Bookings: '🎫',
-  Profile: '👤',
+const TAB_ICONS: Record<keyof TabParamList, IconName> = {
+  Home: 'home',
+  Explore: 'search',
+  Map: 'map',
+  Bookings: 'ticket',
+  Profile: 'user',
 };
 
 const TAB_LABELS: Record<keyof TabParamList, string> = {
@@ -61,16 +64,15 @@ function TabNavigator() {
         // Les écrans gèrent eux-mêmes leur zone sûre haute : un en-tête
         // supplémentaire volerait de la hauteur sur des listes déjà denses.
         headerShown: false,
-        tabBarActiveTintColor: colors.brand[700],
+        tabBarActiveTintColor: colors.text.primary,
         tabBarInactiveTintColor: colors.text.muted,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
         tabBarLabel: TAB_LABELS[route.name],
-        tabBarIcon: ({ focused }) => (
-          <Text style={[styles.tabIcon, !focused && styles.tabIconInactive]}>
-            {TAB_ICONS[route.name]}
-          </Text>
-        ),
+        // La couleur vient de `color`, fourni par le navigateur : l'onglet actif
+        // et l'inactif partagent ainsi exactement le même dessin, seule la
+        // teinte change. C'est ce que l'emoji ne permettait pas.
+        tabBarIcon: ({ color }) => <Icon name={TAB_ICONS[route.name]} size={22} color={color} />,
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
@@ -207,15 +209,21 @@ export function RootNavigator() {
 }
 
 const styles = StyleSheet.create({
+  /*
+   * Barre d'onglets sans trait supérieur.
+   *
+   * Le fond blanc et l'ombre du système suffisent à la détacher du contenu.
+   * Une ligne grise en travers de l'écran est exactement le genre de détail qui
+   * date une interface, et elle n'ajoute aucune information.
+   */
   tabBar: {
     backgroundColor: colors.surface.background,
-    borderTopColor: colors.surface.border,
-    height: 60,
-    paddingTop: 6,
+    borderTopWidth: 0,
+    height: 64,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
-  tabLabel: { ...typography.caption, fontSize: 11, fontWeight: '500' },
-  tabIcon: { fontSize: 20 },
-  tabIconInactive: { opacity: 0.5 },
+  tabLabel: { fontSize: 11, lineHeight: 14, fontWeight: '600', letterSpacing: 0.1 },
 
   header: { backgroundColor: colors.surface.background },
   headerTitle: { ...typography.h3, color: colors.text.primary },

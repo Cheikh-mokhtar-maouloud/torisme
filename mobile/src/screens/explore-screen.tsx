@@ -16,7 +16,7 @@ import {
 import { Chip, EmptyState, ErrorState, Input } from '../components/ui';
 import { useAttractions, useExcursions, useHotels, useRestaurants } from '../api/queries';
 import { useDebouncedValue } from '../lib/use-debounced-value';
-import { colors, spacing } from '../theme';
+import { colors, layout, spacing } from '../theme';
 import type { PlaceTab, RootStackParamList, TabParamList } from '../navigation/types';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -242,9 +242,15 @@ function ExploreList({
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.surface.subtle },
-  searchRow: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
+  screen: { flex: 1, backgroundColor: colors.surface.background },
+  searchRow: { paddingHorizontal: layout.screenPadding, paddingBottom: spacing.md },
   tabsList: { flexGrow: 0 },
-  tabs: { paddingHorizontal: spacing.lg, gap: spacing.sm, paddingVertical: spacing.sm },
-  list: { padding: spacing.lg, gap: spacing.md },
+  tabs: { paddingHorizontal: layout.screenPadding, gap: spacing.sm, paddingVertical: spacing.sm },
+  /*
+   * `gap` généreux entre les fiches : sans bordure ni fond pour les séparer,
+   * c'est le vide qui fait la limite. Douze points ne suffisaient plus une fois
+   * les cadres retirés — le texte d'une fiche paraissait appartenir à l'image
+   * suivante.
+   */
+  list: { paddingHorizontal: layout.screenPadding, paddingVertical: spacing.lg, gap: spacing.xxl },
 });
