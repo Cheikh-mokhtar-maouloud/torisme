@@ -21,7 +21,7 @@ import { useMapMarkers, type MapBounds } from '../api/use-map';
 import { MapMarkerCard, MARKER_COLORS, TYPE_LABELS } from '../components/map-marker-card';
 import { ErrorState } from '../components/ui';
 import { useDebouncedValue } from '../lib/use-debounced-value';
-import { colors, radius, spacing, typography } from '../theme';
+import { colors, layout, radius, shadow, spacing, typography } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -172,13 +172,19 @@ export function MapScreen() {
                 onPress={() => toggleType(type)}
                 style={({ pressed }) => [
                   styles.filter,
-                  isActive && {
-                    backgroundColor: MARKER_COLORS[type],
-                    borderColor: MARKER_COLORS[type],
-                  },
+                  isActive && styles.filterActive,
                   pressed && styles.pressed,
                 ]}
               >
+                {/*
+                  La couleur du type passe par une pastille, non par le fond du
+                  filtre. Remplir la pilule entière donnait quatre gros aplats
+                  vifs alignés en haut de l'écran, qui attiraient le regard bien
+                  plus que la carte qu'ils servent à filtrer — alors que
+                  l'information utile tient en un point : c'est la couleur des
+                  marqueurs correspondants.
+                */}
+                <View style={[styles.filterDot, { backgroundColor: MARKER_COLORS[type] }]} />
                 <Text style={[styles.filterLabel, isActive && styles.filterLabelActive]}>
                   {TYPE_LABELS[type]}
                   {isActive && count > 0 ? ` ${count}` : ''}
@@ -266,24 +272,32 @@ function openDetail(navigation: Navigation, marker: MapMarker): void {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.surface.subtle },
+  screen: { flex: 1, backgroundColor: colors.neutral[100] },
   pressed: { opacity: 0.85 },
 
   topBar: { position: 'absolute', left: 0, right: 0, top: 0 },
-  filters: { paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.sm },
+  filters: {
+    paddingHorizontal: layout.screenPadding,
+    gap: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  /*
+   * Ici l'ombre est justifiée, contrairement au reste de l'application : ces
+   * filtres flottent réellement au-dessus de la carte. Sans elle, un libellé
+   * sombre posé sur une zone sombre de la carte devient illisible.
+   */
   filter: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
     borderRadius: radius.full,
     backgroundColor: colors.surface.background,
-    borderWidth: 1,
-    borderColor: colors.surface.border,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    ...shadow.soft,
   },
+  filterActive: { backgroundColor: colors.neutral[900] },
+  filterDot: { width: 8, height: 8, borderRadius: radius.full },
   filterLabel: { ...typography.caption, color: colors.text.secondary, fontWeight: '600' },
   filterLabelActive: { color: colors.text.inverse },
 
