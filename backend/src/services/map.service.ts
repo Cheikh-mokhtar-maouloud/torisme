@@ -128,14 +128,37 @@ async function queryCollection(spec: CollectionSpec, query: MapQuery): Promise<M
     const match: Record<string, unknown> = { ...spec.baseMatch };
 
     if (hasBounds) {
-      // `$box` attend les coins en [longitude, latitude], sud-ouest puis
-      // nord-est. C'est exactement ce qu'expose une carte comme cadre visible.
+      /*
+       * Le cadre visible est exprimé en **polygone GeoJSON**, et non avec
+       * `$box`.
+       *
+       * `$box` appartient aux opérateurs de coordonnées héritées : il ne sait
+       * utiliser qu'un index `2d`, jamais un `2dsphere`. Avec nos documents
+       * GeoJSON et notre index 2dsphere, la requête reste parfaitement correcte
+       * — et parcourt la collection entière. Sur trois fiches personne ne le
+       * remarque ; sur trois mille, c'est un balayage complet à chaque
+       * déplacement de la carte, soit la requête la plus fréquente de
+       * l'application.
+       *
+       * Le polygone est fermé : le premier et le dernier sommet doivent être
+       * identiques, sinon MongoDB rejette la géométrie. L'ordre antihoraire
+       * décrit l'intérieur du rectangle ; l'ordre inverse désignerait tout le
+       * reste du globe.
+       */
       match[spec.locationField] = {
         $geoWithin: {
-          $box: [
-            [query.swLng!, query.swLat!],
-            [query.neLng!, query.neLat!],
-          ],
+          $geometry: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [query.swLng!, query.swLat!],
+                [query.neLng!, query.swLat!],
+                [query.neLng!, query.neLat!],
+                [query.swLng!, query.neLat!],
+                [query.swLng!, query.swLat!],
+              ],
+            ],
+          },
         },
       };
     }
