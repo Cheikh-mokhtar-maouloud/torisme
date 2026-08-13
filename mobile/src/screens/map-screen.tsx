@@ -330,8 +330,23 @@ const styles = StyleSheet.create({
    * sombre posé sur une zone sombre de la carte devient illisible.
    */
   filter: {
+    /*
+     * `flexGrow` et non `flex: 1`.
+     *
+     * `flex: 1` fixerait la base à zéro : les quatre pastilles auraient la même
+     * largeur, et « Restaurants 2 » — le plus long libellé — serait tronqué
+     * alors que « Sites 3 » nagerait dans le vide.
+     *
+     * `flexGrow` part de la largeur naturelle de chaque pastille et se contente
+     * de répartir l'espace restant. La rangée occupe donc toute la largeur, les
+     * proportions sont respectées, et aucun libellé n'est coupé — quelle que
+     * soit la taille de l'écran.
+     */
+    flexGrow: 1,
+    flexBasis: 'auto',
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 5,
     paddingHorizontal: 9,
     paddingVertical: 9,
