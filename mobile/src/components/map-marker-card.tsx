@@ -1,10 +1,12 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PlaceType } from '@tourism/shared/constants';
 import type { MapMarker } from '@tourism/shared/types';
 
 import { formatMoney } from '../lib/format';
-import { colors, radius, spacing, typography } from '../theme';
+import { colors, layout, radius, spacing, typography } from '../theme';
+import { Icon } from './icon';
 import { PlaceImage } from './place-image';
 import { Rating } from './ui';
 
@@ -41,13 +43,30 @@ export function MapMarkerCard({
   marker,
   onPress,
   onClose,
+  onLayout,
 }: {
   marker: MapMarker;
   onPress: () => void;
   onClose: () => void;
+  /**
+   * Remonte la hauteur réellement occupée.
+   *
+   * L'écran s'en sert pour placer le bouton de localisation juste au-dessus.
+   * Une valeur en dur y supposerait une hauteur fixe, que le contenu dément dès
+   * qu'un nom de lieu passe sur deux lignes ou que l'utilisateur agrandit la
+   * taille du texte dans les réglages du système.
+   */
+  onLayout?: (height: number) => void;
 }) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.container}>
+    <View
+      // La zone sûre du bas est ajoutée à la marge : sans elle, la fiche passe
+      // sous la barre de navigation gestuelle ou sous la barre d'onglets.
+      style={[styles.container, { bottom: insets.bottom + spacing.lg }]}
+      onLayout={(event) => onLayout?.(event.nativeEvent.layout.height)}
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Ouvrir la fiche de ${marker.name}`}
@@ -97,7 +116,7 @@ export function MapMarkerCard({
         hitSlop={10}
         style={styles.close}
       >
-        <Text style={styles.closeLabel}>×</Text>
+        <Icon name="close" size={16} color={colors.text.secondary} />
       </Pressable>
     </View>
   );
@@ -112,9 +131,8 @@ export function formatDistance(meters: number): string {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    bottom: spacing.lg,
+    left: layout.screenPadding,
+    right: layout.screenPadding,
   },
   card: {
     flexDirection: 'row',

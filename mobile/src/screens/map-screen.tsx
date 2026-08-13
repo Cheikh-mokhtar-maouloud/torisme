@@ -22,6 +22,7 @@ import { MapMarkerCard, MARKER_COLORS, TYPE_LABELS } from '../components/map-mar
 import { ErrorState } from '../components/ui';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { colors, layout, radius, shadow, spacing, typography } from '../theme';
+import { Icon } from '../components/icon';
 import type { RootStackParamList } from '../navigation/types';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -45,6 +46,14 @@ const INITIAL_REGION: Region = {
 export function MapScreen() {
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
+  /**
+   * Hauteur réelle de la fiche de marqueur, remontée par `onLayout`.
+   *
+   * La valeur initiale n'a d'effet que sur la première image, avant la mesure ;
+   * elle est volontairement proche de la hauteur observée pour éviter un saut
+   * visible du bouton.
+   */
+  const [cardHeight, setCardHeight] = useState(124);
   const mapRef = useRef<MapView>(null);
 
   const [bounds, setBounds] = useState<MapBounds | null>(null);
@@ -223,14 +232,25 @@ export function MapScreen() {
         disabled={isLocating}
         style={({ pressed }) => [
           styles.locateButton,
-          { bottom: selected ? 170 : insets.bottom + spacing.lg },
+          /*
+           * Le bouton se place au-dessus de la fiche **mesurée**, et non d'une
+           * hauteur supposée. La valeur de 170 employée ici auparavant ne
+           * correspondait à rien de réel — la fiche en fait environ 124 — et
+           * devenait franchement fausse dès qu'un nom passait sur deux lignes ou
+           * que la taille de texte du système était augmentée.
+           */
+          {
+            bottom: selected
+              ? insets.bottom + spacing.lg + cardHeight + spacing.md
+              : insets.bottom + spacing.lg,
+          },
           pressed && styles.pressed,
         ]}
       >
         {isLocating ? (
           <ActivityIndicator size="small" color={colors.brand[700]} />
         ) : (
-          <Text style={styles.locateIcon}>◎</Text>
+          <Icon name="location" size={20} color={colors.text.primary} />
         )}
       </Pressable>
 
@@ -248,6 +268,7 @@ export function MapScreen() {
           marker={selected}
           onClose={() => setSelected(null)}
           onPress={() => openDetail(navigation, selected)}
+          onLayout={setCardHeight}
         />
       ) : null}
     </View>
@@ -344,7 +365,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 5,
   },
-  locateIcon: { fontSize: 22, color: colors.brand[700] },
 
   errorOverlay: {
     position: 'absolute',
