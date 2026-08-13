@@ -25,7 +25,15 @@ const eslintConfig = defineConfig([
     files: ['scripts/**'],
     rules: { 'no-console': 'off' },
   },
-  globalIgnores(['.next/**', 'out/**', 'build/**', 'next-env.d.ts']),
+  globalIgnores([
+    '.next/**',
+    'out/**',
+    'build/**',
+    'next-env.d.ts',
+    // Sortie d'esbuild : du code généré, jamais relu ni modifié à la main.
+    // L'analyser reviendrait à signaler les choix du bundler comme des défauts.
+    'dist-ops/**',
+  ]),
 ]);
 
 export default eslintConfig;

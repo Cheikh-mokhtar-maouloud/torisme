@@ -17,7 +17,8 @@
     "test:excursions": "node scripts/excursion-test.mjs",
     "test:reviews": "node scripts/review-test.mjs",
     "test:notifications": "node scripts/notification-test.mjs",
-    "test:security": "node scripts/security-test.mjs"
+    "test:security": "node scripts/security-test.mjs",
+    "build:ops": "esbuild scripts/create-admin.ts scripts/seed.ts --bundle --platform=node --target=node20 --format=cjs --outdir=dist-ops"
   },
   "dependencies": {
     "@tourism/shared": "*",
@@ -36,6 +37,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",
+    "esbuild": "^0.25.12",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "tsx": "^4.23.12",

@@ -6,6 +6,21 @@ import { z } from 'zod';
  * Validée au démarrage : un secret manquant doit faire échouer le boot, jamais
  * produire un service qui accepte tout le monde en silence.
  */
+/**
+ * Traite une chaîne vide comme une variable absente.
+ *
+ * Docker Compose écrit `${VAR:-}` sous forme de chaîne vide, jamais d'absence :
+ * une variable facultative laissée vide dans `.env` arrive donc à Zod comme
+ * `''`, qui échoue sur `.min(32)`. Le service refuse alors de démarrer à cause
+ * d'un secret qu'on avait justement choisi de ne pas renseigner.
+ */
+function optionalSecret(min = 32) {
+  return z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.string().min(min).optional(),
+  );
+}
+
 const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(4100),
   APP_ENV: z.enum(['development', 'staging', 'production']).default('development'),
@@ -50,9 +65,9 @@ const schema = z.object({
    * accessible — une panne partielle bien plus difficile à diagnostiquer qu'une
    * panne franche.
    */
-  JWT_SECRET_PREVIOUS: z.string().min(32).optional(),
+  JWT_SECRET_PREVIOUS: optionalSecret(),
 
-  REDIS_URL: z.string().optional(),
+  REDIS_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
   /** Doit être identique au `REDIS_KEY_PREFIX` du backend : il nomme le canal. */
   REDIS_KEY_PREFIX: z.string().min(1).default('tourism'),
 
