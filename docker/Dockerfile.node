@@ -1,0 +1,99 @@
+# syntax=docker/dockerfile:1
+#
+# Image commune aux deux services Node de longue durée : `realtime` et `worker`.
+#
+# Ce sont eux qui justifiaient cette phase. Un backend serverless ne peut ni
+# maintenir une connexion WebSocket ni consommer une file : jusqu'ici ils
+# n'avaient aucun hébergement possible.
+#
+# Construction depuis la racine du monorepo :
+#   docker build -f docker/Dockerfile.node --build-arg WORKSPACE=realtime .
+
+ARG NODE_VERSION=20.19.0
+
+# --- Dépendances -------------------------------------------------------------
+FROM node:${NODE_VERSION}-alpine AS deps
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY shared/package.json ./shared/
+COPY backend/package.json ./backend/
+COPY dashboard/package.json ./dashboard/
+COPY realtime/package.json ./realtime/
+COPY worker/package.json ./worker/
+
+# Voir Dockerfile.next : `mobile` est écarté des images serveur.
+RUN node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.workspaces=p.workspaces.filter(w=>w!=='mobile');fs.writeFileSync('package.json',JSON.stringify(p,null,2));"
+
+RUN npm ci --workspaces --include-workspace-root
+
+# --- Construction ------------------------------------------------------------
+FROM node:${NODE_VERSION}-alpine AS builder
+WORKDIR /app
+
+ARG WORKSPACE
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package.json ./package.json
+COPY shared ./shared
+COPY ${WORKSPACE} ./${WORKSPACE}
+
+RUN npm run build --workspace ${WORKSPACE}
+
+# --- Exécution ---------------------------------------------------------------
+FROM node:${NODE_VERSION}-alpine AS runner
+WORKDIR /app
+
+ARG WORKSPACE
+ENV NODE_ENV=production
+
+RUN apk add --no-cache curl tini
+RUN addgroup -g 1001 -S nodejs && adduser -u 1001 -S service -G nodejs
+
+# Ces services n'ont pas d'équivalent de `standalone` : on réinstalle les seules
+# dépendances de production. `--omit=dev` retire TypeScript, tsx, esbuild et
+# ESLint, qui n'ont rien à faire dans une image d'exécution — ils y ajouteraient
+# une surface considérable pour du code jamais appelé.
+#
+# `shared` n'est **pas** copié ici : esbuild l'a déjà incorporé au bundle. Le
+# copier laisserait dans l'image du TypeScript que Node ne sait pas exécuter,
+# et qui n'est plus référencé par rien.
+COPY package.json package-lock.json ./
+COPY ${WORKSPACE}/package.json ./${WORKSPACE}/
+
+# La dépendance `@tourism/shared` est retirée du manifeste avant installation :
+# elle est déjà dans le bundle, et npm échouerait à résoudre un workspace dont
+# les sources ne sont plus là.
+RUN node -e "const fs=require('fs');\
+const p=JSON.parse(fs.readFileSync('package.json','utf8'));\
+p.workspaces=['${WORKSPACE}'];\
+fs.writeFileSync('package.json',JSON.stringify(p,null,2));\
+const w=JSON.parse(fs.readFileSync('${WORKSPACE}/package.json','utf8'));\
+delete w.dependencies['@tourism/shared'];\
+fs.writeFileSync('${WORKSPACE}/package.json',JSON.stringify(w,null,2));" \
+  && npm install --omit=dev --workspaces --include-workspace-root --no-audit --no-fund \
+  && npm cache clean --force
+
+COPY --from=builder --chown=service:nodejs /app/${WORKSPACE}/dist ./${WORKSPACE}/dist
+
+# Le point d'entrée est lu depuis le champ `main` du workspace, et figé ici :
+# `WORKSPACE` est un argument de construction, il n'existe plus à l'exécution.
+# Le déduire par une transformation de chaîne dans le CMD marcherait tant que
+# les noms coïncident, et casserait au premier service qui rompt la convention.
+RUN node -e "const w='${WORKSPACE}';const m=require('/app/'+w+'/package.json').main;require('fs').writeFileSync('/app/.entrypoint',w+'/'+m)"   && chown service:nodejs /app/.entrypoint
+
+USER service
+
+# Le worker n'expose rien : il ne reçoit aucun trafic entrant, il ne fait que
+# consommer une file et appeler l'API. Aucun port, donc aucune règle de
+# pare-feu, aucun certificat, aucune surface exposée.
+EXPOSE 4100
+
+# Seul `realtime` a un point de santé ; pour le worker, la commande retombe sur
+# une vérification de processus. Un worker vivant mais incapable de joindre
+# Redis se signale par ses journaux, pas par un port.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD curl -fsS "http://127.0.0.1:4100/health" || pgrep -f "dist/worker" > /dev/null || exit 1
+
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["sh", "-c", "node $(cat /app/.entrypoint)"]

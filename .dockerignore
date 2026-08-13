@@ -1,0 +1,20 @@
+# Contexte de construction.
+#
+# Ce fichier ne sert pas qu'à la vitesse : sans lui, `COPY` embarquerait les
+# fichiers `.env` du poste de développement dans l'image. Un secret dans une
+# couche Docker y reste, même si une commande ultérieure le supprime.
+**/.env
+**/.env.*
+!**/.env.example
+
+**/node_modules
+**/.next
+**/dist
+**/dist-ops
+**/.expo
+mobile
+.git
+.github
+docs
+*.md
+**/.uploads

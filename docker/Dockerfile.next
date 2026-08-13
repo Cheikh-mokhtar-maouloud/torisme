@@ -1,0 +1,123 @@
+# syntax=docker/dockerfile:1
+#
+# Image commune aux deux applications Next : backend et dashboard.
+#
+# Un seul fichier paramétré par `WORKSPACE` plutôt que deux presque identiques.
+# Dupliquer un Dockerfile garantit qu'une correction n'est appliquée qu'à l'un
+# des deux — et l'écart ne se voit qu'en production, sur l'image qu'on a oublié.
+#
+# Construction depuis la **racine du monorepo** :
+#   docker build -f docker/Dockerfile.next --build-arg WORKSPACE=backend .
+
+ARG NODE_VERSION=20.19.0
+
+# --- Dépendances -------------------------------------------------------------
+FROM node:${NODE_VERSION}-alpine AS deps
+WORKDIR /app
+
+# Les manifestes sont copiés seuls, avant les sources : tant qu'ils ne changent
+# pas, Docker réutilise le cache de `npm ci`. Copier tout le dépôt d'abord
+# invaliderait cette couche à la moindre modification de code, et chaque build
+# réinstallerait l'intégralité des dépendances.
+COPY package.json package-lock.json ./
+COPY shared/package.json ./shared/
+COPY backend/package.json ./backend/
+COPY dashboard/package.json ./dashboard/
+COPY realtime/package.json ./realtime/
+COPY worker/package.json ./worker/
+
+# Le workspace `mobile` est **volontairement absent**. Il n'a rien à faire sur un
+# serveur, et c'est lui qui porte la chaîne Expo/Metro — donc les vulnérabilités
+# recensées par `audit:deps`. Les installer ici les ferait entrer en production
+# alors qu'aucun code ne les appelle.
+#
+# `npm ci` exige que le lockfile décrive tous les workspaces ; on écarte donc
+# `mobile` du manifeste racine plutôt que de l'omettre du lockfile.
+RUN node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.workspaces=p.workspaces.filter(w=>w!=='mobile');fs.writeFileSync('package.json',JSON.stringify(p,null,2));"
+
+RUN npm ci --workspaces --include-workspace-root
+
+# --- Construction ------------------------------------------------------------
+FROM node:${NODE_VERSION}-alpine AS builder
+WORKDIR /app
+
+ARG WORKSPACE
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package.json ./package.json
+COPY shared ./shared
+COPY ${WORKSPACE} ./${WORKSPACE}
+COPY tsconfig.base.json* ./
+
+RUN npm run build --workspace ${WORKSPACE}
+
+# Scripts d'exploitation, compilés en JavaScript autonome.
+#
+# `create-admin` et `seed` sont écrits en TypeScript et lancés par `tsx` en
+# développement. L'image d'exécution n'a ni TypeScript ni tsx : sans cette
+# étape, **il serait impossible de créer le premier administrateur sur le
+# serveur** — la plateforme se déploierait sans que personne ne puisse s'y
+# connecter. Le script est ignoré si le workspace n'en définit pas.
+RUN npm run build:ops --workspace ${WORKSPACE} --if-present
+
+# --- Exécution ---------------------------------------------------------------
+FROM node:${NODE_VERSION}-alpine AS runner
+WORKDIR /app
+
+ARG WORKSPACE
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+# `curl` sert au HEALTHCHECK ; `tini` fait office de PID 1.
+#
+# Sans init, Node reçoit lui-même le PID 1 et n'hérite pas des gestionnaires de
+# signaux par défaut : `docker stop` envoie SIGTERM, personne ne l'écoute, et le
+# conteneur est tué au bout du délai de grâce — au milieu d'une requête.
+RUN apk add --no-cache curl tini
+
+# Utilisateur non privilégié. Une faille d'exécution de code dans Next donne
+# alors les droits de `nextjs`, pas ceux de root : elle ne permet ni d'installer
+# de paquet, ni d'écrire hors des répertoires prévus.
+RUN addgroup -g 1001 -S nodejs && adduser -u 1001 -S nextjs -G nodejs
+
+# `standalone` contient déjà le serveur et ses seules dépendances utiles.
+COPY --from=builder --chown=nextjs:nodejs /app/${WORKSPACE}/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/${WORKSPACE}/.next/static ./${WORKSPACE}/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/${WORKSPACE}/public ./${WORKSPACE}/public
+
+# `dist-op[s]` : la classe de caractères transforme le chemin en motif. Un motif
+# sans correspondance est ignoré, là où un chemin littéral absent fait échouer la
+# construction — et seul le backend produit ces scripts, pas le dashboard.
+COPY --from=builder --chown=nextjs:nodejs /app/${WORKSPACE}/dist-op[s] ./${WORKSPACE}/dist-ops
+
+# Répertoire des téléversements, créé **et donné à l'utilisateur applicatif**.
+#
+# Docker recopie les droits du répertoire de l'image lorsqu'il initialise un
+# volume nommé. Si le répertoire n'existe pas, le volume est créé appartenant à
+# root, et le processus — qui tourne sous un compte non privilégié — ne peut
+# plus y écrire : chaque envoi de photo échoue en « permission denied ».
+#
+# Le défaut est invisible en développement, où rien ne s'exécute sous un autre
+# utilisateur, et n'apparaîtrait qu'au premier téléversement en production.
+RUN mkdir -p /app/${WORKSPACE}/public/uploads   && chown -R nextjs:nodejs /app/${WORKSPACE}/public
+
+# Chemin du serveur figé à la construction : `WORKSPACE` est un argument de
+# build, il n'existe plus à l'exécution.
+RUN printf '%s' "${WORKSPACE}/server.js" > /app/.entrypoint && chown nextjs:nodejs /app/.entrypoint
+
+USER nextjs
+
+EXPOSE 3000
+
+# Le point de santé superficiel suffit : il dit que le processus répond. Une
+# base lente ne doit pas faire redémarrer une instance parfaitement capable de
+# servir le trafic.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD curl -fsS "http://127.0.0.1:${PORT}/api/health" || curl -fsS "http://127.0.0.1:${PORT}/login" || exit 1
+
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["sh", "-c", "node $(cat /app/.entrypoint)"]
