@@ -13,21 +13,13 @@ import { useMapMarkers, type MapBounds } from '../api/use-map';
 import { MapMarkerCard, MARKER_COLORS, TYPE_LABELS } from '../components/map-marker-card';
 import { ErrorState } from '../components/ui';
 import { useDebouncedValue } from '../lib/use-debounced-value';
-import { colors, layout, radius, shadow, spacing, typography } from '../theme';
-import { Icon, type IconName } from '../components/icon';
+import { colors, radius, shadow, spacing, typography } from '../theme';
+import { Icon } from '../components/icon';
 import type { RootStackParamList } from '../navigation/types';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
 const ALL_TYPES = Object.values(PlaceType);
-
-/** Icône par type de lieu, reprise de celle des catégories de l'accueil. */
-const TYPE_ICONS: Record<PlaceType, IconName> = {
-  [PlaceType.HOTEL]: 'hotel',
-  [PlaceType.RESTAURANT]: 'restaurant',
-  [PlaceType.ATTRACTION]: 'attraction',
-  [PlaceType.EXCURSION]: 'excursion',
-};
 
 const INITIAL_REGION: Region = {
   latitude: DEFAULT_MAP_CENTER.latitude,
@@ -203,22 +195,22 @@ export function MapScreen() {
                   marqueurs correspondants.
                 */}
                 {/*
-                  L'icône inactive prend la couleur des marqueurs de son type :
-                  c'est ce qui remplace la légende que portait le libellé. Une
-                  fois le filtre actif, le fond devient sombre et l'icône passe
-                  en blanc, faute de quoi le teal ou l'orange deviendrait
-                  illisible sur le noir.
+                  La pastille de couleur remplace l'icône : elle occupe 6 points
+                  au lieu de 17, et c'est ce gain qui permet de replacer le
+                  libellé. Elle conserve l'information utile — quels marqueurs
+                  de la carte ce filtre concerne.
                 */}
-                <Icon
-                  name={TYPE_ICONS[type]}
-                  size={17}
-                  color={isActive ? colors.text.inverse : MARKER_COLORS[type]}
-                />
-                {count > 0 ? (
-                  <Text style={[styles.filterLabel, isActive && styles.filterLabelActive]}>
-                    {count}
-                  </Text>
-                ) : null}
+                <View style={[styles.filterDot, { backgroundColor: MARKER_COLORS[type] }]} />
+                <Text
+                  // Une seule ligne, sans troncature : si un libellé venait à
+                  // ne plus tenir, il faut le voir immédiatement plutôt que de
+                  // le découvrir coupé sur l'appareil d'un utilisateur.
+                  numberOfLines={1}
+                  style={[styles.filterLabel, isActive && styles.filterLabelActive]}
+                >
+                  {TYPE_LABELS[type]}
+                  {count > 0 ? ` ${count}` : ''}
+                </Text>
               </Pressable>
             );
           })}
@@ -318,10 +310,18 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.85 },
 
   topBar: { position: 'absolute', left: 0, right: 0, top: 0 },
+  /*
+   * Marges resserrées, propres à cette rangée.
+   *
+   * Elles ne suivent pas `layout.screenPadding` comme le reste de
+   * l'application : quatre libellés doivent tenir sur 360 points, et chaque
+   * point compte. C'est une exception assumée, motivée par une contrainte de
+   * place réelle et non par une préférence.
+   */
   filters: {
     flexDirection: 'row',
-    paddingHorizontal: layout.screenPadding,
-    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    gap: 6,
     paddingBottom: spacing.sm,
   },
   /*
@@ -332,15 +332,18 @@ const styles = StyleSheet.create({
   filter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 10,
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 9,
     borderRadius: radius.full,
     backgroundColor: colors.surface.background,
     ...shadow.soft,
   },
   filterActive: { backgroundColor: colors.neutral[900] },
-  filterLabel: { ...typography.caption, color: colors.text.secondary, fontWeight: '600' },
+  filterDot: { width: 6, height: 6, borderRadius: radius.full },
+  // 11 points : la taille des libellés de la barre d'onglets, donc déjà
+  // employée ailleurs dans l'application et lisible sur un petit écran.
+  filterLabel: { fontSize: 11, lineHeight: 14, color: colors.text.secondary, fontWeight: '700' },
   filterLabelActive: { color: colors.text.inverse },
 
   status: {
