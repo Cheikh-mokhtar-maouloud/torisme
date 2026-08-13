@@ -32,7 +32,9 @@
     "stack:logs": "docker compose logs -f --tail=100",
     "stack:ps": "docker compose ps",
     "backup": "bash scripts/backup.sh",
-    "restore": "bash scripts/restore.sh"
+    "restore": "bash scripts/restore.sh",
+    "test:scaling": "bash scripts/test-scaling.sh",
+    "test:load": "node scripts/load-test.mjs"
   },
   "devDependencies": {
     "prettier": "^3.4.2"
