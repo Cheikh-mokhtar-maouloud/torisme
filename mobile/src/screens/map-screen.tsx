@@ -14,12 +14,20 @@ import { MapMarkerCard, MARKER_COLORS, TYPE_LABELS } from '../components/map-mar
 import { ErrorState } from '../components/ui';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { colors, layout, radius, shadow, spacing, typography } from '../theme';
-import { Icon } from '../components/icon';
+import { Icon, type IconName } from '../components/icon';
 import type { RootStackParamList } from '../navigation/types';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
 const ALL_TYPES = Object.values(PlaceType);
+
+/** Icône par type de lieu, reprise de celle des catégories de l'accueil. */
+const TYPE_ICONS: Record<PlaceType, IconName> = {
+  [PlaceType.HOTEL]: 'hotel',
+  [PlaceType.RESTAURANT]: 'restaurant',
+  [PlaceType.ATTRACTION]: 'attraction',
+  [PlaceType.EXCURSION]: 'excursion',
+};
 
 const INITIAL_REGION: Region = {
   latitude: DEFAULT_MAP_CENTER.latitude,
@@ -156,17 +164,17 @@ export function MapScreen() {
 
       <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
         {/*
-          Retour à la ligne automatique, et non défilement horizontal.
+          Une seule rangée, sans défilement ni retour à la ligne.
           
-          Quatre libellés de cette longueur ne tiennent pas sur 360 points de
-          large : le dernier sortait de l'écran. Un défilement horizontal le
-          rendait atteignable, mais **invisible** — rien n'indique qu'il existe
-          un quatrième filtre, et un utilisateur ne cherche pas à faire glisser
-          une rangée qui paraît complète.
+          Les libellés ont cédé la place aux icônes, et c'est une contrainte
+          arithmétique, pas une préférence : « Restaurants 2 » mesure à lui seul
+          près de 95 points, et quatre pastilles de ce genre demandent plus de
+          380 points là où un téléphone courant en offre 360. Aucun réglage de
+          police ou de marge ne referme cet écart sans tronquer un mot.
           
-          Avec `flexWrap`, les pastilles passent à la ligne quand il le faut et
-          se remettent sur une seule rangée dès que la largeur le permet. La
-          disposition s'adapte à l'écran au lieu de le supposer.
+          Les icônes tiennent sur n'importe quelle largeur — environ 52 points
+          chacune, 232 au total — et le nom complet reste annoncé aux lecteurs
+          d'écran par `accessibilityLabel`.
         */}
         <View style={styles.filters}>
           {ALL_TYPES.map((type) => {
@@ -194,11 +202,23 @@ export function MapScreen() {
                   l'information utile tient en un point : c'est la couleur des
                   marqueurs correspondants.
                 */}
-                <View style={[styles.filterDot, { backgroundColor: MARKER_COLORS[type] }]} />
-                <Text style={[styles.filterLabel, isActive && styles.filterLabelActive]}>
-                  {TYPE_LABELS[type]}
-                  {isActive && count > 0 ? ` ${count}` : ''}
-                </Text>
+                {/*
+                  L'icône inactive prend la couleur des marqueurs de son type :
+                  c'est ce qui remplace la légende que portait le libellé. Une
+                  fois le filtre actif, le fond devient sombre et l'icône passe
+                  en blanc, faute de quoi le teal ou l'orange deviendrait
+                  illisible sur le noir.
+                */}
+                <Icon
+                  name={TYPE_ICONS[type]}
+                  size={17}
+                  color={isActive ? colors.text.inverse : MARKER_COLORS[type]}
+                />
+                {count > 0 ? (
+                  <Text style={[styles.filterLabel, isActive && styles.filterLabelActive]}>
+                    {count}
+                  </Text>
+                ) : null}
               </Pressable>
             );
           })}
@@ -300,7 +320,6 @@ const styles = StyleSheet.create({
   topBar: { position: 'absolute', left: 0, right: 0, top: 0 },
   filters: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     paddingHorizontal: layout.screenPadding,
     gap: spacing.sm,
     paddingBottom: spacing.sm,
@@ -321,7 +340,6 @@ const styles = StyleSheet.create({
     ...shadow.soft,
   },
   filterActive: { backgroundColor: colors.neutral[900] },
-  filterDot: { width: 8, height: 8, borderRadius: radius.full },
   filterLabel: { ...typography.caption, color: colors.text.secondary, fontWeight: '600' },
   filterLabelActive: { color: colors.text.inverse },
 
