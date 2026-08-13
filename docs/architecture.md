@@ -71,7 +71,7 @@ L'architecture cible est construite par étapes, pas d'emblée :
 | Asynchrone     | Redis + BullMQ, workers séparés de l'API             | 13 ✅ |
 | Sécurité       | En-têtes navigateur, rotation de secrets, audit       | 14 ✅ |
 | Serveur propre | VPS Ubuntu + Docker + Nginx                          | 15 ✅ |
-| Échelle        | Cloudflare (CDN/WAF) + load balancer + N instances   | 16    |
+| Échelle        | Répartition sur N instances, index vérifiés          | 16 ✅ |
 
 Contrainte à respecter dès maintenant pour que cette évolution reste possible :
 **le backend doit rester sans état**. Aucune donnée en mémoire de processus

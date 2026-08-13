@@ -533,6 +533,152 @@ le DNS, pas par le code : en cas de problème, on repointe les enregistrements e
 la Phase 4 reprend du service. Les données, elles, ont bougé — d'où l'importance
 d'avoir restauré une sauvegarde **avant** de basculer.
 
+# Phase 16 — Mise à l'échelle
+
+## Ce que cette phase démontre
+
+Les phases précédentes ont **promis** que le backend restait sans état. Tant
+qu'une seule instance tournait, ce n'était qu'une intention. Voici la preuve.
+
+```bash
+npm run test:scaling          # backend ×3, temps réel ×2
+```
+
+| Propriété | Mesure |
+| --------- | ------ |
+| Répartition de charge | 21 / 21 / 18 requêtes sur trois instances |
+| Session utilisable partout | 30 appels authentifiés, 0 refus, répartis 10 / 10 / 10 |
+| Quota **commun** | 300 servies, 40 refusées sur une rafale de 340 — un compteur local en aurait laissé passer 900 |
+| Cache partagé | une entrée écrite par une instance sert aux autres |
+| Diffusion temps réel | chaque instance reçoit la publication Redis |
+| Arrêt d'une instance | 120 requêtes pendant le redémarrage, 0 erreur |
+
+La ligne du quota est la plus parlante : elle prouve d'un seul chiffre que le
+travail Redis de la Phase 13 n'était pas décoratif. Avec un compteur en mémoire
+de processus, la limite aurait été triplée au moment précis où l'on ajoute des
+instances pour absorber une montée en charge.
+
+## Répartition sans blocage au démarrage
+
+Nginx résout `backend` **à chaque requête**, via une variable et le résolveur
+interne de Docker. Docker renvoie l'ensemble des adresses des instances, et
+Nginx les parcourt à tour de rôle.
+
+Un bloc `upstream` classique offrirait un choix d'algorithme plus riche, mais il
+résout au chargement : ajouter une instance exigerait de recharger Nginx, et une
+instance absente l'empêcherait de démarrer entièrement (voir Phase 15).
+
+## Un défaut que seules plusieurs instances révèlent
+
+Le volume des téléversements était monté sur `/app/backend/public/uploads`,
+alors que le stockage local écrit dans `/app/.uploads` — délibérément hors de
+`public/`, que Next ne lit qu'à la construction.
+
+Un volume monté au mauvais endroit ne provoque **aucune erreur**. Chaque
+instance écrivait sur son propre disque éphémère : les fichiers disparaissaient
+au redémarrage, et derrière trois instances une image téléversée devenait
+introuvable dès que la lecture tombait sur une autre.
+
+Avec une seule instance, tout fonctionnait — y compris la suite de tests de la
+Phase 15, qui l'avait validée à 25/25. Il a fallu mettre à l'échelle pour le
+voir.
+
+La correction du chemin n'a pas suffi, et la seconde cause était plus subtile :
+**Next modifie le répertoire de travail du processus** dans sa sortie autonome.
+Un chemin construit sur `process.cwd()` désignait donc `/app/backend/.uploads`
+là où le volume était monté sur `/app/.uploads` — deux emplacements distincts,
+aucune erreur, des fichiers écrits dans le vide.
+
+Le répertoire est désormais **imposé** par `UPLOAD_DIR`, et non déduit. C'est la
+leçon générale : un chemin qui dépend du répertoire de travail dépend d'un
+détail d'exécution que personne ne contrôle.
+
+## Audit des index
+
+```bash
+npm run audit:indexes --workspace backend
+```
+
+Chaque requête chaude passe par `explain`. Le contrôle est **structurel** : le
+temps d'exécution dépend de la machine et du cache, le plan non — il dit si la
+requête passera à l'échelle.
+
+Le prédicat géographique est testé **isolément**, sans filtre de statut. Sur
+trois documents, le planificateur choisit n'importe quel index et applique la
+contrainte géographique après coup : le plan obtenu ne dit alors rien du
+comportement sur trois mille fiches.
+
+C'est précisément ainsi qu'a été trouvé le défaut le plus coûteux de cette
+phase : la requête d'emprise de la carte utilisait `$geoWithin: { $box: … }`, un
+opérateur de coordonnées **héritées** qui ne sait utiliser qu'un index `2d`,
+jamais un `2dsphere`. La requête était parfaitement correcte et parcourait la
+collection entière — à chaque déplacement de carte, c'est-à-dire la requête la
+plus fréquente de l'application. Remplacée par un polygone GeoJSON, elle utilise
+maintenant `IXSCAN(location_2dsphere)`.
+
+Le rapport signale les collections de moins de cent documents : un plan mesuré
+sur un jeu de démonstration ne garantit rien.
+
+## Mesure de charge
+
+```bash
+npm run test:load -- https://api.exemple.mr 8 15 4
+#                    url                   conc durée req/s
+```
+
+Le débit est **cadencé**, et c'est indispensable. À pleine vitesse, la
+limitation de débit refuse l'immense majorité des requêtes ; ces 429 sont vides
+et immédiats, et les latences affichées décrivent alors le refus, pas le
+service. Sans ce cadencement, le premier essai annonçait 2 000 req/s à 9 ms —
+un chiffre entièrement produit par des rejets.
+
+Relevé sur le poste de développement, à 4 req/s :
+
+| Parcours | p50 | p95 | p99 |
+| -------- | --- | --- | --- |
+| Liste des hôtels | 35 ms | 87 ms | 172 ms |
+| Catégories (en cache) | 29 ms | 84 ms | 86 ms |
+| Carte, cadre visible | 48 ms | 75 ms | 92 ms |
+| Recherche textuelle | 40 ms | 84 ms | 89 ms |
+
+Ces chiffres ne valent que pour cette machine — Docker Desktop sous Windows, TLS
+compris. Leur intérêt est **comparatif** : avant et après une modification.
+
+Pour chercher un plafond de débit réel, il faut relever le quota le temps de la
+mesure. L'automatiser reviendrait à inscrire un contournement de la protection
+dans le code de production.
+
+## Ressources statiques
+
+Aucun en-tête de cache n'est ajouté par Nginx. Next sert déjà ses actifs hachés
+avec `public, max-age=31536000, immutable` — vérifié, pas supposé. En rajouter
+un dupliquerait la règle à deux endroits, avec la certitude qu'ils divergent un
+jour.
+
+## CDN et pare-feu applicatif — non vérifiés
+
+Un CDN placé devant la plateforme apporterait trois choses : la mise en cache des
+images au plus près des visiteurs, l'absorption des attaques volumétriques avant
+qu'elles n'atteignent le serveur, et un pare-feu applicatif.
+
+**Rien de tout cela n'a pu être vérifié** : ces services se placent devant une
+infrastructure publique, avec un domaine réel. Les recommandations qui suivent
+sont raisonnées, pas éprouvées.
+
+- **Ne pas mettre le CDN en cache devant l'API.** Les réponses dépendent du
+  jeton ; une réponse mise en cache pour un compte et servie à un autre est une
+  fuite de données. Seules les images téléversées s'y prêtent.
+- **Conserver la limitation applicative.** Celle du CDN travaille sur l'adresse
+  IP ; la nôtre compte par compte et connaît les rôles. Elles se complètent.
+- **Vérifier l'en-tête d'adresse réelle.** Derrière un CDN, `X-Forwarded-For`
+  contient la chaîne complète des relais. Notre configuration Nginx le
+  **réécrit** avec l'adresse qu'elle observe : correct en bordure directe, faux
+  derrière un CDN, où il faudrait faire confiance à l'en-tête du fournisseur —
+  et seulement au sien, sur ses plages d'adresses.
+
+Ce dernier point est un vrai piège : mal traité, toute la limitation de débit
+compte le trafic mondial sur une poignée d'adresses de relais.
+
 # Phases suivantes
 
 ## Phase 15 — Migration vers un VPS

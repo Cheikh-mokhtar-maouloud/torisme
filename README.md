@@ -82,7 +82,7 @@ npm run build          # build de production backend + dashboard
 | 13    | Redis, files BullMQ, limitation de débit | ✅ terminée |
 | 14    | Sécurité de production                | ✅ terminée |
 | 15    | Migration VPS (Docker, Nginx, TLS)    | ✅ terminée |
-| 16    | Mise à l'échelle                      | à venir |
+| 16    | Mise à l'échelle                      | ✅ terminée |
 
 
 ## Licence
