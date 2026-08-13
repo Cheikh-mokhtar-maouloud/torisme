@@ -4,6 +4,7 @@ import type { NextRequest } from 'next/server';
 import { env } from '@/config/env';
 
 import { HttpError } from './errors';
+import { SecurityEvent, callerIp, securityEvent } from './security-log';
 
 /**
  * Authentification des appels internes (worker → backend).
@@ -25,7 +26,14 @@ export function requireInternalCaller(request: NextRequest): void {
   }
 
   const provided = request.headers.get('x-internal-secret');
-  if (!provided) throw HttpError.unauthorized('Secret interne requis');
+  if (!provided) {
+    securityEvent(SecurityEvent.INTERNAL_CALL_REJECTED, {
+      ip: callerIp(request),
+      path: new URL(request.url).pathname,
+      detail: 'secret absent',
+    });
+    throw HttpError.unauthorized('Secret interne requis');
+  }
 
   const providedBuffer = Buffer.from(provided);
   const expectedBuffer = Buffer.from(expected);
@@ -40,6 +48,11 @@ export function requireInternalCaller(request: NextRequest): void {
     providedBuffer.length !== expectedBuffer.length ||
     !timingSafeEqual(providedBuffer, expectedBuffer)
   ) {
+    securityEvent(SecurityEvent.INTERNAL_CALL_REJECTED, {
+      ip: callerIp(request),
+      path: new URL(request.url).pathname,
+      detail: 'secret invalide',
+    });
     throw HttpError.unauthorized('Secret interne invalide');
   }
 }

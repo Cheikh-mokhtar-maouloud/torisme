@@ -3,6 +3,7 @@ import type { User as UserDto } from '@tourism/shared/types';
 import type { AdminUpdateUserInput, UserListQuery } from '@tourism/shared/validation';
 
 import { HttpError } from '@/lib/errors';
+import { SecurityEvent, securityEvent } from '@/lib/security-log';
 import { buildSort, escapeRegex, paginateQuery, type PaginatedResult } from '@/lib/query';
 import { serializeDocument } from '@/lib/serialize';
 import { User } from '@/models';
@@ -86,5 +87,21 @@ export async function adminUpdateUser(
   ).lean();
 
   if (!updated) throw HttpError.notFound('Utilisateur introuvable');
+
+  /*
+   * Tracé même lorsque l'opération est parfaitement légitime. C'est le principe
+   * d'une piste d'audit : après un incident, la question posée est « qui a
+   * donné ce rôle, et quand », et elle ne peut recevoir de réponse que si
+   * l'enregistrement a eu lieu avant qu'on ne sache qu'il y aurait incident.
+   */
+  if (input.role !== undefined || input.isActive !== undefined) {
+    securityEvent(SecurityEvent.PRIVILEGE_CHANGED, {
+      userId: id,
+      detail: `par ${actorId} — ${input.role !== undefined ? `rôle ${input.role}` : ''}${
+        input.isActive !== undefined ? ` actif ${input.isActive}` : ''
+      }`.trim(),
+    });
+  }
+
   return serializeDocument<UserDto>(updated);
 }

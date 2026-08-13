@@ -10,6 +10,7 @@ import { HttpError } from './errors';
 import { logger, serializeError } from './logger';
 import { fail, internalError, validationError } from './api-response';
 import { RateLimits, clientIdentifier, rateLimit, type RateLimitRule } from './rate-limit';
+import { SecurityEvent, callerIp, securityEvent } from './security-log';
 
 type RouteHandler<TContext> = (
   request: NextRequest,
@@ -55,7 +56,11 @@ export function withRoute<TContext = unknown>(
       const verdict = await rateLimit(await clientIdentifier(request), rule, request.method);
 
       if (!verdict.allowed) {
-        logger.warn('débit dépassé', { method: request.method, path, status: 429 });
+        securityEvent(SecurityEvent.RATE_LIMITED, {
+          ip: callerIp(request),
+          path,
+          detail: `${request.method}, quota ${rule.limit}/${rule.windowSeconds}s`,
+        });
         return fail(
           ErrorCode.RATE_LIMITED,
           'Trop de requêtes. Réessayez dans un instant.',

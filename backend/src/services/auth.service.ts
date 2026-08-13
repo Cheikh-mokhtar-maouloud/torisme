@@ -12,6 +12,7 @@ import type {
 import { signAccessToken } from '@/lib/auth/jwt';
 import { fakePasswordCheck, hashPassword, verifyPassword } from '@/lib/auth/password';
 import { HttpError } from '@/lib/errors';
+import { SecurityEvent, securityEvent } from '@/lib/security-log';
 import { logger } from '@/lib/logger';
 import { mailer } from '@/lib/mail';
 import { passwordResetEmail, welcomeEmail } from '@/lib/mail/templates';
@@ -119,7 +120,12 @@ export async function login(input: LoginInput, userAgent?: string): Promise<Auth
   const passwordMatches = await verifyPassword(input.password, found.passwordHash);
 
   if (!passwordMatches) {
-    await registerFailedAttempt(String(found._id), (found.failedLoginAttempts ?? 0) + 1);
+    const attempts = (found.failedLoginAttempts ?? 0) + 1;
+    securityEvent(SecurityEvent.LOGIN_FAILED, {
+      userId: String(found._id),
+      detail: `tentative ${attempts}`,
+    });
+    await registerFailedAttempt(String(found._id), attempts);
     throw HttpError.unauthorized('Email ou mot de passe incorrect');
   }
 
@@ -159,7 +165,7 @@ async function registerFailedAttempt(userId: string, attempts: number): Promise<
   );
 
   if (shouldLock) {
-    logger.warn('compte verrouillé après échecs répétés', { userId, attempts });
+    securityEvent(SecurityEvent.ACCOUNT_LOCKED, { userId, detail: `${attempts} échecs` });
   }
 }
 

@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 
 import { HttpError } from '@/lib/errors';
-import { logger } from '@/lib/logger';
+import { SecurityEvent, securityEvent } from '@/lib/security-log';
 import { Session } from '@/models';
 
 /**
@@ -69,9 +69,14 @@ export async function rotateRefreshToken(
   if (session.revokedAt) throw HttpError.unauthorized('Session révoquée');
 
   if (session.usedAt) {
-    logger.warn('réutilisation d’un jeton de rafraîchissement — sessions révoquées', {
-      userId: String(session.userId),
-    });
+    /*
+     * Un jeton de rafraîchissement déjà consommé qui revient n'a aucune
+     * explication innocente : la rotation en émet un neuf à chaque échange, si
+     * bien que l'ancien ne peut réapparaître que copié. Toutes les sessions du
+     * compte sont révoquées — y compris celle du voleur, qui est peut-être la
+     * seule active.
+     */
+    securityEvent(SecurityEvent.REFRESH_REPLAY, { userId: String(session.userId) });
     await revokeAllSessions(String(session.userId));
     throw HttpError.unauthorized('Session compromise, reconnectez-vous');
   }
