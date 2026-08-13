@@ -61,7 +61,12 @@ export function storage(): StorageProvider {
  * Hors de `public/` : ce dossier n'est lu par Next qu'à la construction, un
  * fichier ajouté pendant l'exécution n'y serait pas servi. La route
  * `/api/files/...` lit ici directement.
+ *
+ * `UPLOAD_DIR` prime sur le chemin déduit, et doit être renseigné dès qu'un
+ * volume est monté. Next modifie le répertoire de travail dans sa sortie
+ * autonome : le chemin déduit devient alors `<racine>/backend/.uploads`, un
+ * emplacement que personne n'a choisi et sur lequel aucun volume n'est monté.
  */
 export function localUploadRoot(): string {
-  return join(process.cwd(), '.uploads');
+  return env().UPLOAD_DIR ?? join(process.cwd(), '.uploads');
 }

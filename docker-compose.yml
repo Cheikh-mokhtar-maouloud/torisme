@@ -42,6 +42,15 @@ services:
     # `appendonly` : les tâches en file et les rappels programmés survivent à un
     # redémarrage. Sans persistance, un simple `docker compose restart` perdrait
     # tous les rappels d'excursion différés.
+    # Le mot de passe est aussi exposé **dans** le conteneur.
+    #
+    # Compose l'interpole dans `command` au moment de lire ce fichier : la valeur
+    # arrive donc au serveur Redis, mais `$REDIS_PASSWORD` reste vide à
+    # l'intérieur. Toute commande d'exploitation — `redis-cli` lancé par un
+    # opérateur, une purge de cache, un diagnostic — échoue alors sur une erreur
+    # d'authentification que rien n'explique.
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?requis}
     command: >
       redis-server --appendonly yes
       --requirepass ${REDIS_PASSWORD:?requis}
@@ -85,6 +94,7 @@ services:
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?requis}
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:?requis}
       STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
+      UPLOAD_DIR: /app/uploads
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
@@ -93,9 +103,13 @@ services:
       MAIL_FROM: ${MAIL_FROM:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
-      # Les images téléversées vivent hors du conteneur : une image reconstruite
-      # ne doit pas emporter le contenu du site.
-      - uploads:/app/backend/public/uploads
+      # Le chemin est imposé par `UPLOAD_DIR`, pas deviné.
+      #
+      # Un volume monté au mauvais endroit ne provoque aucune erreur : chaque
+      # instance écrit alors sur son propre disque éphémère. Les fichiers
+      # disparaissent au redémarrage, et derrière plusieurs instances une image
+      # téléversée devient introuvable dès que la lecture tombe sur une autre.
+      - uploads:/app/uploads
     depends_on:
       mongo: { condition: service_healthy }
       redis: { condition: service_healthy }

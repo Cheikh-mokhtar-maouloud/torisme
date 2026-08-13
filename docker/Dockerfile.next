@@ -96,6 +96,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/${WORKSPACE}/dist-op[s] ./${WORKS
 
 # Répertoire des téléversements, créé **et donné à l'utilisateur applicatif**.
 #
+# Le chemin est fixé par la variable `UPLOAD_DIR` du service, et non déduit du
+# répertoire de travail : Next le modifie dans sa sortie autonome.
+#
 # Docker recopie les droits du répertoire de l'image lorsqu'il initialise un
 # volume nommé. Si le répertoire n'existe pas, le volume est créé appartenant à
 # root, et le processus — qui tourne sous un compte non privilégié — ne peut
@@ -103,7 +106,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/${WORKSPACE}/dist-op[s] ./${WORKS
 #
 # Le défaut est invisible en développement, où rien ne s'exécute sous un autre
 # utilisateur, et n'apparaîtrait qu'au premier téléversement en production.
-RUN mkdir -p /app/${WORKSPACE}/public/uploads   && chown -R nextjs:nodejs /app/${WORKSPACE}/public
+RUN mkdir -p /app/uploads   && chown -R nextjs:nodejs /app/uploads
 
 # Chemin du serveur figé à la construction : `WORKSPACE` est un argument de
 # build, il n'existe plus à l'exécution.

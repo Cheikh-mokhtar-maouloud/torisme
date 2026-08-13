@@ -71,6 +71,18 @@ const envSchema = z.object({
    */
   PUBLIC_BASE_URL: z.string().url().default('http://localhost:4000'),
 
+  /**
+   * Répertoire des fichiers téléversés, en stockage local.
+   *
+   * **Explicite, et non déduit du répertoire de travail.** Next modifie le
+   * `cwd` du processus dans sa sortie autonome : un chemin construit sur
+   * `process.cwd()` désigne alors `/app/backend/.uploads` là où l'on croyait
+   * écrire dans `/app/.uploads`. Le volume se monte au mauvais endroit sans la
+   * moindre erreur, et chaque instance écrit sur son disque éphémère — invisible
+   * tant qu'une seule instance tourne.
+   */
+  UPLOAD_DIR: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+
   /* --- Emails -------------------------------------------------------------- */
   MAIL_PROVIDER: z.enum(['console', 'resend']).default('console'),
   MAIL_API_KEY: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
