@@ -195,10 +195,52 @@ async function run() {
     headers: { 'Content-Type': 'application/json' },
     body: '{}',
   });
+  /*
+   * Deux réponses correctes selon la topologie : derrière Nginx (Phase 15), les
+   * routes internes ne sont pas publiées du tout et renvoient 404 ; en accès
+   * direct, le backend refuse en 401. Exiger l'un des deux ferait échouer la
+   * vérification sur l'architecture qui protège pourtant le mieux.
+   */
   check(
-    'Les routes internes refusent un appel non authentifié',
-    internal?.status === 401 || internal?.status === 403,
-    `statut ${internal?.status} — elles doivent être fermées sans X-Internal-Secret.`,
+    'Les routes internes ne sont pas ouvertes',
+    internal?.status === 404 || internal?.status === 401 || internal?.status === 403,
+    `statut ${internal?.status} — attendu 404 derrière Nginx, 401 en accès direct.`,
+  );
+
+  /* --- Bordure (Phase 15) --------------------------------------------------------- */
+  console.log('\nBordure');
+
+  /*
+   * En HTTPS, la redirection depuis HTTP est vérifiable ; en local, la
+   * répétition est faite sur le port courant et le contrôle est ignoré.
+   */
+  if (backend.startsWith('https://')) {
+    const plain = await safeFetch(backend.replace('https://', 'http://'), { redirect: 'manual' });
+    check(
+      'HTTP redirige vers HTTPS',
+      plain?.status === 301 || plain?.status === 308,
+      `statut ${plain?.status} — sans redirection, un client peut rester en clair`,
+    );
+
+    const acme = await safeFetch(
+      `${backend.replace('https://', 'http://')}/.well-known/acme-challenge/verification`,
+      { redirect: 'manual' },
+    );
+    check(
+      'Le défi ACME reste accessible en clair',
+      acme?.status === 404,
+      `statut ${acme?.status} — une redirection ici ferait échouer chaque renouvellement, ` +
+        'et le certificat expirerait au bout de trois mois sans que rien n’ait changé',
+    );
+  } else {
+    warn('Redirection HTTP et défi ACME non vérifiés — cible en clair');
+  }
+
+  const banner = await safeFetch(`${backend}/api/health`);
+  check(
+    'Aucun serveur frontal n’annonce sa version',
+    !/nginx\/[0-9]/i.test(banner?.headers.get('server') ?? ''),
+    banner?.headers.get('server'),
   );
 
   /* --- Dashboard --------------------------------------------------------------- */
