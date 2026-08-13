@@ -31,28 +31,6 @@ const config: ExpoConfig = {
       monochromeImage: './assets/android-icon-monochrome.png',
       backgroundColor: '#0f766e',
     },
-    /*
-     * Clé Google Maps, requise pour les compilations natives Android.
-     *
-     * Contrairement à ce qui était noté ici, **Expo Go ne suffit pas toujours**.
-     * Sa clé embarquée est restreinte à sa propre signature : sur un émulateur,
-     * le SDK répond « Authorization failure » et la carte s'affiche vide, avec
-     * ses marqueurs et ses filtres fonctionnels mais sans tuiles. Vérifié le
-     * 13/08/2026 sur un AVD Android 10 avec Play Services 26.22.
-     *
-     * Pour voir la carte pendant le développement, il faut donc une clé propre :
-     *   EXPO_PUBLIC_MAPS_API_KEY=… npx expo start
-     *
-     * La clé doit être restreinte au nom de paquet et à la signature de
-     * l'application dans la console Google Cloud : intégrée au bundle, elle est
-     * extractible de tout APK. Sans restriction, elle serait réutilisable par
-     * n'importe qui et facturée sur votre compte.
-     *
-     * iOS utilise Apple Maps par défaut et ne demande aucune clé.
-     */
-    config: process.env.EXPO_PUBLIC_MAPS_API_KEY
-      ? { googleMaps: { apiKey: process.env.EXPO_PUBLIC_MAPS_API_KEY } }
-      : undefined,
   },
   web: {
     favicon: './assets/favicon.png',

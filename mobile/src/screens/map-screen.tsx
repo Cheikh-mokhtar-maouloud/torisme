@@ -1,8 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,6 +9,7 @@ import { DEFAULT_MAP_CENTER, PlaceType } from '@tourism/shared/constants';
 import type { MapMarker } from '@tourism/shared/types';
 
 import { useMapMarkers, type MapBounds } from '../api/use-map';
+import { LeafletMap, type LeafletMapHandle } from '../components/leaflet-map';
 import { MapMarkerCard, MARKER_COLORS, TYPE_LABELS } from '../components/map-marker-card';
 import { ErrorState } from '../components/ui';
 import { useDebouncedValue } from '../lib/use-debounced-value';
@@ -21,11 +21,17 @@ type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
 const ALL_TYPES = Object.values(PlaceType);
 
-const INITIAL_REGION: Region = {
+/**
+ * Centre initial, converti de l'étendue en degrés vers un niveau de zoom.
+ *
+ * Leaflet raisonne en niveaux de zoom là où `react-native-maps` employait une
+ * étendue en degrés. Onze correspond à peu près à l'agglomération de Nouakchott
+ * que décrivait `latitudeDelta`.
+ */
+const INITIAL_CENTER = {
   latitude: DEFAULT_MAP_CENTER.latitude,
   longitude: DEFAULT_MAP_CENTER.longitude,
-  latitudeDelta: DEFAULT_MAP_CENTER.latitudeDelta,
-  longitudeDelta: DEFAULT_MAP_CENTER.longitudeDelta,
+  zoom: 11,
 };
 
 /**
@@ -46,7 +52,7 @@ export function MapScreen() {
    * visible du bouton.
    */
   const [cardHeight, setCardHeight] = useState(124);
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<LeafletMapHandle>(null);
 
   const [bounds, setBounds] = useState<MapBounds | null>(null);
   const [activeTypes, setActiveTypes] = useState<PlaceType[]>(ALL_TYPES);
@@ -59,13 +65,14 @@ export function MapScreen() {
   const debouncedBounds = useDebouncedValue(bounds, 350);
   const { data, error, isFetching, refetch } = useMapMarkers(debouncedBounds, activeTypes);
 
-  const handleRegionChange = useCallback((region: Region) => {
-    setBounds({
-      swLat: region.latitude - region.latitudeDelta / 2,
-      swLng: region.longitude - region.longitudeDelta / 2,
-      neLat: region.latitude + region.latitudeDelta / 2,
-      neLng: region.longitude + region.longitudeDelta / 2,
-    });
+  /*
+   * Le cadre visible arrive désormais tout calculé depuis la carte, au lieu
+   * d'être déduit d'un centre et d'une étendue. C'est plus fiable : la
+   * conversion précédente supposait une projection linéaire, fausse dès qu'on
+   * s'éloigne de l'équateur.
+   */
+  const handleBoundsChange = useCallback((next: MapBounds) => {
+    setBounds(next);
   }, []);
 
   const toggleType = (type: PlaceType) => {
@@ -102,15 +109,7 @@ export function MapScreen() {
         accuracy: Location.Accuracy.Balanced,
       });
 
-      mapRef.current?.animateToRegion(
-        {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          latitudeDelta: 0.08,
-          longitudeDelta: 0.08,
-        },
-        500,
-      );
+      mapRef.current?.centerOn(position.coords.latitude, position.coords.longitude, 14);
     } catch {
       setLocationNotice('Position indisponible. Vérifiez que la localisation est activée.');
     } finally {
@@ -122,37 +121,16 @@ export function MapScreen() {
 
   return (
     <View style={styles.screen}>
-      <MapView
+      <LeafletMap
         ref={mapRef}
-        style={StyleSheet.absoluteFill}
-        // Google Maps sur Android ; iOS conserve Apple Maps, qui ne demande
-        // aucune clé et s'intègre mieux au système.
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        initialRegion={INITIAL_REGION}
-        onRegionChangeComplete={handleRegionChange}
-        showsUserLocation
-        showsMyLocationButton={false}
-        toolbarEnabled={false}
-        // Fermer la fiche en touchant la carte est le geste attendu.
-        onPress={() => setSelected(null)}
-      >
-        {markers.map((marker) => (
-          <Marker
-            key={`${marker.type}-${marker.id}`}
-            coordinate={{ latitude: marker.latitude, longitude: marker.longitude }}
-            pinColor={MARKER_COLORS[marker.type]}
-            title={marker.name}
-            description={marker.city}
-            // `onPress` du marqueur : la sélection alimente la mini-fiche, et
-            // `stopPropagation` empêche le `onPress` de la carte de la refermer
-            // aussitôt.
-            onPress={(event) => {
-              event.stopPropagation();
-              setSelected(marker);
-            }}
-          />
-        ))}
-      </MapView>
+        markers={markers}
+        initialCenter={INITIAL_CENTER}
+        onBoundsChange={handleBoundsChange}
+        onMarkerPress={setSelected}
+        // Toucher la carte hors d'un marqueur referme la fiche : c'est le geste
+        // attendu, et il évite d'avoir à viser la petite croix.
+        onMapPress={() => setSelected(null)}
+      />
 
       <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
         {/*
