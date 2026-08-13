@@ -25,7 +25,8 @@
     "format:check": "prettier --check .",
     "verify:deployment": "node scripts/verify-deployment.mjs",
     "dev:realtime": "npm run dev --workspace realtime",
-    "dev:worker": "npm run dev --workspace worker"
+    "dev:worker": "npm run dev --workspace worker",
+    "audit:deps": "node scripts/audit-dependencies.mjs"
   },
   "devDependencies": {
     "prettier": "^3.4.2"

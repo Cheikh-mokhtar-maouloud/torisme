@@ -16,7 +16,8 @@
     "test:auth": "node scripts/auth-test.mjs",
     "test:excursions": "node scripts/excursion-test.mjs",
     "test:reviews": "node scripts/review-test.mjs",
-    "test:notifications": "node scripts/notification-test.mjs"
+    "test:notifications": "node scripts/notification-test.mjs",
+    "test:security": "node scripts/security-test.mjs"
   },
   "dependencies": {
     "@tourism/shared": "*",

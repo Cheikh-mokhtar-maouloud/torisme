@@ -221,6 +221,35 @@ async function run() {
     const login = await safeFetch(`${dashboard}/login`);
     const loginHtml = login ? await login.text() : '';
     check('La page de connexion s’affiche', login?.status === 200, login?.status);
+
+    /*
+     * En-têtes du dashboard. Ils comptent davantage que ceux de l'API : c'est
+     * ici qu'un navigateur exécute du JavaScript avec un cookie de session
+     * administrateur en poche.
+     */
+    const csp = login?.headers.get('content-security-policy') ?? '';
+    const scriptSrc = csp
+      .split(';')
+      .map((part) => part.trim())
+      .find((part) => part.startsWith('script-src'));
+
+    check('Une CSP est envoyée', csp.includes("default-src 'none'"), csp.slice(0, 120));
+    check(
+      'Les scripts sont autorisés par nonce, sans unsafe-inline',
+      Boolean(scriptSrc) &&
+        /'nonce-[^']+'/.test(scriptSrc) &&
+        !scriptSrc.includes("'unsafe-inline'"),
+      scriptSrc,
+    );
+    check(
+      'Le dashboard ne peut pas être mis en cadre',
+      login?.headers.get('x-frame-options') === 'DENY' && csp.includes("frame-ancestors 'none'"),
+    );
+    expectInProduction(
+      'HSTS est envoyé par le dashboard',
+      Boolean(login?.headers.get('strict-transport-security')),
+      login?.headers.get('strict-transport-security'),
+    );
     check(
       'La page de connexion n’expose aucune URL interne d’API',
       !loginHtml.includes(backend),
