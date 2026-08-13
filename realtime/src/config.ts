@@ -43,6 +43,15 @@ const schema = z.object({
    * reçoit que les appels HTTP `/emit`. Les deux voies aboutissent au même
    * routage, donc au même comportement observable.
    */
+  /**
+   * Clé précédente, acceptée en vérification le temps d'une rotation. Doit
+   * suivre celle du backend : sans elle, changer `JWT_SECRET` couperait
+   * instantanément tous les sockets ouverts, alors que l'API, elle, resterait
+   * accessible — une panne partielle bien plus difficile à diagnostiquer qu'une
+   * panne franche.
+   */
+  JWT_SECRET_PREVIOUS: z.string().min(32).optional(),
+
   REDIS_URL: z.string().optional(),
   /** Doit être identique au `REDIS_KEY_PREFIX` du backend : il nomme le canal. */
   REDIS_KEY_PREFIX: z.string().min(1).default('tourism'),

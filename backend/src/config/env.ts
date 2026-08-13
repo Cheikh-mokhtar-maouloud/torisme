@@ -21,6 +21,13 @@ const envSchema = z.object({
 
   /** Secret de signature des jetons. 32 caractères minimum. */
   JWT_SECRET: z.string().min(32, 'JWT_SECRET doit faire au moins 32 caractères'),
+  /**
+   * Clé précédente, acceptée en **vérification seulement**, le temps d'une
+   * rotation. À retirer une fois la durée de vie des jetons d'accès écoulée :
+   * la laisser en place indéfiniment maintiendrait valide un secret que la
+   * rotation était censée retirer du service.
+   */
+  JWT_SECRET_PREVIOUS: z.string().min(32).optional(),
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('30d'),
 

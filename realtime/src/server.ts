@@ -14,7 +14,17 @@ const config = loadConfig();
 
 const ISSUER = 'tourism-platform';
 const AUDIENCE = 'tourism-clients';
-const secretKey = new TextEncoder().encode(config.JWT_SECRET);
+/**
+ * Clés acceptées à la vérification, dans l'ordre d'essai.
+ *
+ * La seconde n'existe que pendant une rotation de `JWT_SECRET`. Elle permet aux
+ * jetons émis avant le changement de rester valides le temps de leur expiration
+ * — quinze minutes — au lieu de faire tomber toutes les connexions d'un coup.
+ */
+const verificationKeys = [
+  new TextEncoder().encode(config.JWT_SECRET),
+  ...(config.JWT_SECRET_PREVIOUS ? [new TextEncoder().encode(config.JWT_SECRET_PREVIOUS)] : []),
+];
 
 function log(level: 'info' | 'warn' | 'error', message: string, context?: object): void {
   console.log(JSON.stringify({ level, time: new Date().toISOString(), message, ...context }));
@@ -186,27 +196,32 @@ io.use(async (socket: Socket, next) => {
     return;
   }
 
-  try {
-    const { payload } = await jwtVerify(token, secretKey, {
-      issuer: ISSUER,
-      audience: AUDIENCE,
-      algorithms: ['HS256'],
-    });
+  for (const key of verificationKeys) {
+    try {
+      const { payload } = await jwtVerify(token, key, {
+        issuer: ISSUER,
+        audience: AUDIENCE,
+        algorithms: ['HS256'],
+      });
 
-    if (typeof payload.sub !== 'string') {
-      next(new Error('Jeton invalide'));
+      if (typeof payload.sub !== 'string') {
+        next(new Error('Jeton invalide'));
+        return;
+      }
+
+      (socket.data as SocketData) = {
+        userId: payload.sub,
+        role: typeof payload.role === 'string' ? payload.role : 'USER',
+      };
+
+      next();
       return;
+    } catch {
+      // Clé suivante : un jeton expiré échouera sur toutes.
     }
-
-    (socket.data as SocketData) = {
-      userId: payload.sub,
-      role: typeof payload.role === 'string' ? payload.role : 'USER',
-    };
-
-    next();
-  } catch {
-    next(new Error('Jeton invalide ou expiré'));
   }
+
+  next(new Error('Jeton invalide ou expiré'));
 });
 
 io.on('connection', (socket: Socket) => {
