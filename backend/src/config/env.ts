@@ -6,6 +6,21 @@ import { z } from 'zod';
  * Un secret manquant ou malformé doit faire échouer le boot immédiatement,
  * jamais produire une erreur silencieuse au premier appel API.
  */
+/**
+ * Traite une chaîne vide comme une variable absente.
+ *
+ * Docker Compose écrit `${VAR:-}` sous forme de chaîne vide, jamais d'absence :
+ * une variable facultative laissée vide dans `.env` arrive donc à Zod comme
+ * `''`, qui échoue sur `.min(32)`. Le service refuse alors de démarrer à cause
+ * d'un secret qu'on avait justement choisi de ne pas renseigner.
+ */
+function optionalSecret(min = 32) {
+  return z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.string().min(min).optional(),
+  );
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_ENV: z.enum(['development', 'staging', 'production']).default('development'),
@@ -27,7 +42,7 @@ const envSchema = z.object({
    * la laisser en place indéfiniment maintiendrait valide un secret que la
    * rotation était censée retirer du service.
    */
-  JWT_SECRET_PREVIOUS: z.string().min(32).optional(),
+  JWT_SECRET_PREVIOUS: optionalSecret(),
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('30d'),
 
@@ -58,9 +73,9 @@ const envSchema = z.object({
 
   /* --- Emails -------------------------------------------------------------- */
   MAIL_PROVIDER: z.enum(['console', 'resend']).default('console'),
-  MAIL_API_KEY: z.string().optional(),
+  MAIL_API_KEY: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
   /** Expéditeur, au format « Nom <adresse@domaine> ». Le domaine doit être vérifié. */
-  MAIL_FROM: z.string().optional(),
+  MAIL_FROM: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
   /**
    * Racine des liens envoyés par email (réinitialisation, confirmation).
    * Pointe vers le dashboard ou le site public, pas vers l'API.
@@ -72,9 +87,9 @@ const envSchema = z.object({
    * Racine du service Socket.IO. Absente, l'application fonctionne normalement,
    * simplement sans mise à jour instantanée — le temps réel est un confort.
    */
-  REALTIME_URL: z.string().url().optional(),
+  REALTIME_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
   /** Secret partagé avec le service temps réel. Distinct de `JWT_SECRET`. */
-  REALTIME_PUBLISH_SECRET: z.string().min(32).optional(),
+  REALTIME_PUBLISH_SECRET: optionalSecret(),
 
   /* --- Redis : cache, files, limitation de débit --------------------------- */
   /**
@@ -82,7 +97,7 @@ const envSchema = z.object({
    * devient transparent, les files s'exécutent en ligne, la limitation de débit
    * retombe sur un compteur mémoire. C'est le cas par défaut en développement.
    */
-  REDIS_URL: z.string().optional(),
+  REDIS_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
   /**
    * Préfixe de toutes les clés. Il permet de partager une instance Redis entre
    * plusieurs environnements sans qu'un `staging` puisse lire ou invalider le
@@ -98,7 +113,7 @@ const envSchema = z.object({
    * `REALTIME_PUBLISH_SECRET`. Absent, les routes `/api/internal/*` refusent
    * tout appel — le défaut sûr.
    */
-  INTERNAL_API_SECRET: z.string().min(32).optional(),
+  INTERNAL_API_SECRET: optionalSecret(),
 });
 
 export type Env = z.infer<typeof envSchema>;
