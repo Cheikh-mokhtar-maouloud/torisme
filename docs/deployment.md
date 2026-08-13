@@ -287,6 +287,32 @@ partiront pas. Les réservations, elles, ne sont pas affectées.
 Après une purge ou un redémarrage sans persistance, le worker réenregistre son
 planning d'entretien de lui-même, dans un délai de quinze minutes.
 
+# Phase 14 — Sécurité de production
+
+## Avant chaque mise en production
+
+```bash
+npm run audit:deps                                    # dépendances
+npm run test:security --workspace backend             # protections
+npm run verify:deployment https://api… https://admin… # conformité réelle
+```
+
+Les trois échouent en code 1 : ils sont utilisables tels quels dans une chaîne
+d'intégration.
+
+## Variables ajoutées
+
+`JWT_SECRET_PREVIOUS` — vide en temps normal, renseignée seulement pendant une
+rotation, **sur le backend et le service temps réel à la fois**. La procédure
+complète est dans `security.md`.
+
+## Ce que la Phase 14 ne couvre pas
+
+HTTPS, certificats et pare-feu relèvent de la Phase 15 : Vercel les fournit
+aujourd'hui, et il n'y a pas encore de serveur à configurer. WAF et protection
+DDoS relèvent de la Phase 16, puisqu'ils se placent devant une infrastructure
+qui n'existe pas encore.
+
 # Phases suivantes
 
 ## Phase 15 — Migration vers un VPS

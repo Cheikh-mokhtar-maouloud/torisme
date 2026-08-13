@@ -176,6 +176,137 @@ droit de déclencher des traitements que le backend valide de toute façon.
 Sans `INTERNAL_API_SECRET`, les routes internes refusent **tout** appel : le
 défaut d'une variable absente doit toujours être le refus.
 
+## En-têtes du navigateur (Phase 14 ✅)
+
+L'API est verrouillée depuis la Phase 2, mais elle ne sert que du JSON à des
+clients programmatiques. **La vraie surface est le dashboard** : il sert du HTML
+à un navigateur, y exécute du JavaScript, et détient un cookie de session
+administrateur. Une injection réussie là donne le contrôle de la plateforme.
+
+Les en-têtes sont posés dans le middleware, pas dans `next.config.ts`, parce que
+la CSP repose sur un nonce qui doit être régénéré à chaque réponse. Un nonce
+figé dans la configuration serait identique pour tous les visiteurs, donc
+devinable — c'est-à-dire sans valeur.
+
+| Directive | Choix | Pourquoi |
+| --------- | ----- | -------- |
+| `default-src` | `'none'` | Tout est refusé, chaque autorisation est ensuite explicite |
+| `script-src` | `'nonce-…' 'strict-dynamic'` | `'unsafe-inline'` ferait exécuter un script injecté exactement comme ceux de Next |
+| `style-src` | `'self' 'unsafe-inline'` | Compromis assumé : Next insère du CSS critique sans nonce. Le risque résiduel est l'exfiltration par sélecteur, sans commune mesure avec l'exécution de script |
+| `frame-ancestors` | `'none'` | Détournement de clic ; doublé par `X-Frame-Options` pour les navigateurs anciens |
+| `base-uri` | `'none'` | Un `<base>` injecté détournerait toutes les URL relatives |
+| `connect-src` | `'self'` | Le navigateur ne parle qu'au dashboard : les appels à l'API partent du serveur Next |
+
+`Referrer-Policy: strict-origin-when-cross-origin` empêche qu'un chemin comme
+`/bookings/6a7c…/edit` parte vers un site tiers par le simple `Referer`.
+
+`Permissions-Policy` refuse caméra, micro, position et paiement. L'intérêt n'est
+pas de se protéger de son propre code, mais de limiter ce qu'un script injecté
+pourrait demander.
+
+## Rotation d'un secret
+
+### `JWT_SECRET`
+
+Sans précaution, le changer invalide instantanément toutes les sessions. La
+conséquence pratique n'est pas la gêne des utilisateurs : c'est qu'**on hésite à
+le faire**, et qu'un secret qu'on n'ose pas remplacer reste en place après la
+fuite qui aurait dû le faire changer.
+
+`JWT_SECRET_PREVIOUS` est donc accepté **en vérification seulement**. La
+signature n'utilise jamais que la clé courante.
+
+1. `JWT_SECRET_PREVIOUS` = ancienne valeur, `JWT_SECRET` = nouvelle. Sur le
+   backend **et** sur le service temps réel — sans quoi les sockets tomberaient
+   alors que l'API resterait accessible, une panne partielle bien plus
+   difficile à diagnostiquer qu'une panne franche.
+2. Déployer.
+3. Attendre `JWT_ACCESS_TTL` (15 min par défaut). Les jetons de rafraîchissement
+   ne sont pas concernés : ce sont des chaînes aléatoires opaques stockées en
+   base, sans lien avec cette clé.
+4. Retirer `JWT_SECRET_PREVIOUS` et redéployer. **Cette étape n'est pas
+   facultative** : la laisser en place maintiendrait valide le secret que la
+   rotation était censée retirer du service.
+
+### Les autres secrets
+
+| Secret | Effet du changement | Précaution |
+| ------ | ------------------- | ---------- |
+| `REALTIME_PUBLISH_SECRET` | Publications refusées jusqu'à ce que les deux côtés concordent | Déployer le service temps réel avant le backend : une publication perdue ne coûte qu'une mise à jour différée |
+| `INTERNAL_API_SECRET` | Les tâches du worker échouent | Sans gravité : BullMQ réessaie, les tâches repartent une fois les deux côtés alignés |
+| `MONGODB_URI`, `MAIL_API_KEY` | Rotation côté fournisseur, puis redéploiement | — |
+
+Aucun secret n'est en Git. `.gitignore` exclut tous les `.env*` sauf les
+`.env.example`, et `verify:deployment` échoue si un secret attendu manque.
+
+## Journalisation
+
+Les valeurs sensibles sont **rédigées au point de sortie unique** du logger, et
+non à la charge de chaque appelant. Rien ne fuite aujourd'hui, mais une
+protection qui repose sur la vigilance de celui qui écrit `logger.error(...)`
+finit toujours par céder : il suffit d'un contexte d'erreur enrichi un peu trop
+généreusement.
+
+La comparaison se fait sur le nom du champ en minuscules et sans séparateurs,
+pour que `passwordHash`, `password_hash` et `PASSWORD` tombent sous la même
+règle. Le nom du champ est conservé et seule la valeur est remplacée : voir
+`password: [rédigé]` aide à comprendre l'incident, alors qu'un champ effacé
+laisse croire qu'il n'a jamais été transmis.
+
+### Événements de sécurité
+
+Un champ `securityEvent` distinct rend les règles d'alerte triviales à écrire.
+Noyés parmi les `logger.warn` ordinaires — un champ mal rempli, une page
+introuvable — ces événements exigeraient de reconnaître à l'œil ce qui relève
+d'une attaque.
+
+| Événement | Niveau | Lecture |
+| --------- | ------ | ------- |
+| `login_failed` | warn | Banal isolément ; c'est la répétition qui compte |
+| `account_locked` | warn | Force brute contenue |
+| `rate_limited` | warn | Abus ou client mal configuré |
+| `forbidden` | warn | Tentative d'accès hors périmètre |
+| `internal_call_rejected` | **error** | Quelqu'un appelle `/api/internal/*` sans le secret |
+| `privilege_changed` | **error** | Tracé même légitime : après un incident, la question est « qui a donné ce rôle, et quand » |
+| `refresh_replay` | **error** | **Aucune explication innocente** : un jeton déjà consommé ne peut réapparaître que copié |
+
+Les deux derniers méritent une alerte immédiate. Les mettre au même niveau que
+les échecs de connexion les ferait passer inaperçus au milieu du bruit.
+
+## Dépendances
+
+```bash
+npm run audit:deps
+```
+
+`npm audit` seul ne suffit pas : il signale la même chose depuis des mois, on
+s'habitue à sa sortie, et une vraie faille s'y perdrait. Le script en fait une
+**décision**, par deux traitements :
+
+1. **Remontée à la cause racine.** Une faille dans `image-size` fait apparaître
+   `metro`, `react-native` et une dizaine d'autres. Douze signalements, une
+   seule cause.
+2. **Contrôle du confinement.** Chaque exception déclare le workspace autorisé à
+   tirer le paquet, et le script relit l'arbre de dépendances à chaque
+   exécution. Une exception par simple nom continuerait de couvrir le paquet le
+   jour où il atterrirait dans le backend, là où il serait exploitable.
+
+Les exceptions sont datées et signalées au bout de 90 jours. Une exception sans
+date devient permanente par simple oubli.
+
+État au 13/08/2026 : 12 hautes et 7 modérées, toutes issues de `image-size`
+(Metro) et `uuid` (édition du projet Xcode). Outillage de build, jamais embarqué
+dans l'application ni présent sur le serveur. Résolues par la prochaine montée
+de version d'Expo.
+
+## Ce qui relève des phases suivantes
+
+| Sujet | Phase | Pourquoi pas maintenant |
+| ----- | ----- | ----------------------- |
+| HTTPS, certificats, pare-feu | 15 | Vercel les fournit ; il n'y a pas encore de serveur à configurer |
+| WAF, protection DDoS, CDN | 16 | Se placent devant l'infrastructure, qui n'existe pas encore |
+| Chiffrement au repos | 15 | Relève de la configuration MongoDB Atlas et du disque du VPS |
+
 ## Paiement (Phase 23)
 
 Règle non négociable : **un paiement n'est confirmé que par le serveur**. La réponse

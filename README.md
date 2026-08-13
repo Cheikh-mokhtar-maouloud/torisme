@@ -80,7 +80,8 @@ npm run build          # build de production backend + dashboard
 | 11    | Notifications et emails              | ✅ terminée |
 | 12    | Temps réel (Socket.IO)               | ✅ terminée |
 | 13    | Redis, files BullMQ, limitation de débit | ✅ terminée |
-| 14–16 | Sécurité de production, migration serveur, mise à l'échelle | à venir |
+| 14    | Sécurité de production                | ✅ terminée |
+| 15–16 | Migration serveur, mise à l'échelle   | à venir |
 
 
 ## Licence

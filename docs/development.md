@@ -84,6 +84,16 @@ npm run test:reviews     --workspace backend   # anti faux avis, modération, fa
 npm run test:notifications --workspace backend # émission, cloisonnement, diffusion
 npm run test:realtime    --workspace realtime  # authentification, salles, cloisonnement
 npm run test:worker      --workspace worker    # cache, débit, files, idempotence
+npm run test:security    --workspace backend   # en-têtes, privilèges, énumération
+```
+
+`test:security` exige le backend **et** le dashboard démarrés. Ce ne sont pas
+des tests fonctionnels : chacun vérifie qu'une protection tient toujours. Une
+régression n'y casse aucune fonctionnalité — elle ouvre une porte, et rien
+d'autre ne le signalerait.
+
+```bash
+npm run audit:deps       # vulnérabilités, ramenées à leur cause racine
 ```
 
 `test:worker` exige Redis, le backend **et** le worker démarrés. Il vérifie ce
