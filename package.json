@@ -26,7 +26,13 @@
     "verify:deployment": "node scripts/verify-deployment.mjs",
     "dev:realtime": "npm run dev --workspace realtime",
     "dev:worker": "npm run dev --workspace worker",
-    "audit:deps": "node scripts/audit-dependencies.mjs"
+    "audit:deps": "node scripts/audit-dependencies.mjs",
+    "stack:up": "docker compose up -d --build",
+    "stack:down": "docker compose down",
+    "stack:logs": "docker compose logs -f --tail=100",
+    "stack:ps": "docker compose ps",
+    "backup": "bash scripts/backup.sh",
+    "restore": "bash scripts/restore.sh"
   },
   "devDependencies": {
     "prettier": "^3.4.2"

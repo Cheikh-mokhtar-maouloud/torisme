@@ -1,0 +1,215 @@
+# Pile complète — Phase 15.
+#
+# Ce fichier remplace Vercel. Il héberge surtout les deux services qui n'avaient
+# jusqu'ici **aucun hébergement possible** : `realtime`, qui maintient des
+# connexions longues, et `worker`, qui consomme une file. Un backend serverless
+# ne sait faire ni l'un ni l'autre.
+#
+#   docker compose up -d --build
+#   docker compose logs -f backend
+
+name: tourism
+
+services:
+  # --- Données ---------------------------------------------------------------
+  mongo:
+    image: mongo:8
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:?requis}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?requis}
+      MONGO_INITDB_DATABASE: ${MONGO_DB_NAME:-tourism}
+    volumes:
+      - mongo-data:/data/db
+      # Répertoire de sauvegarde monté depuis l'hôte : un dump écrit dans le
+      # conteneur disparaîtrait avec lui, ce qui est précisément ce dont une
+      # sauvegarde doit protéger.
+      - ./backups:/backups
+    # Aucun port publié. La base n'est jamais atteignable depuis l'extérieur :
+    # seuls les services du réseau interne la voient. Publier 27017 « pour
+    # déboguer » est la première cause d'exposition de bases MongoDB.
+    networks: [internal]
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # `appendonly` : les tâches en file et les rappels programmés survivent à un
+    # redémarrage. Sans persistance, un simple `docker compose restart` perdrait
+    # tous les rappels d'excursion différés.
+    command: >
+      redis-server --appendonly yes
+      --requirepass ${REDIS_PASSWORD:?requis}
+      --maxmemory ${REDIS_MAXMEMORY:-256mb}
+      --maxmemory-policy noeviction
+    volumes:
+      - redis-data:/data
+    networks: [internal]
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  # --- Applications ----------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.next
+      args:
+        WORKSPACE: backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      APP_ENV: ${APP_ENV:-production}
+      PORT: 3000
+      MONGODB_URI: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongo:27017/${MONGO_DB_NAME:-tourism}?authSource=admin
+      MONGODB_DB_NAME: ${MONGO_DB_NAME:-tourism}
+      # Bien au-dessus du défaut de 5, choisi pour le serverless où des dizaines
+      # d'instances se partagent la base. Ici il n'y a qu'une instance : un pool
+      # de 5 la brime au premier pic de trafic.
+      MONGODB_MAX_POOL_SIZE: ${MONGODB_MAX_POOL_SIZE:-25}
+      JWT_SECRET: ${JWT_SECRET:?requis}
+      JWT_SECRET_PREVIOUS: ${JWT_SECRET_PREVIOUS:-}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-tourism}
+      REALTIME_URL: http://realtime:4100
+      REALTIME_PUBLISH_SECRET: ${REALTIME_PUBLISH_SECRET:?requis}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?requis}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?requis}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:?requis}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-console}
+      MAIL_API_KEY: ${MAIL_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      # Les images téléversées vivent hors du conteneur : une image reconstruite
+      # ne doit pas emporter le contenu du site.
+      - uploads:/app/backend/public/uploads
+    depends_on:
+      mongo: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [internal]
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.next
+      args:
+        WORKSPACE: dashboard
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      APP_ENV: ${APP_ENV:-production}
+      PORT: 3000
+      # Adresse interne : le dashboard interroge le backend par le réseau Docker,
+      # sans sortir vers Internet ni repasser par Nginx. Le trajet est plus
+      # court, et l'URL interne n'est jamais exposée au navigateur.
+      API_URL: http://backend:3000
+      NEXT_PUBLIC_REALTIME_URL: ${NEXT_PUBLIC_REALTIME_URL:-}
+    depends_on:
+      backend: { condition: service_started }
+    networks: [internal]
+
+  realtime:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.node
+      args:
+        WORKSPACE: realtime
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      PORT: 4100
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET_PREVIOUS: ${JWT_SECRET_PREVIOUS:-}
+      REALTIME_PUBLISH_SECRET: ${REALTIME_PUBLISH_SECRET}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-tourism}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      redis: { condition: service_healthy }
+    networks: [internal]
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.node
+      args:
+        WORKSPACE: worker
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-tourism}
+      BACKEND_URL: http://backend:3000
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
+      MAINTENANCE_INTERVAL_MINUTES: ${MAINTENANCE_INTERVAL_MINUTES:-60}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      redis: { condition: service_healthy }
+      backend: { condition: service_started }
+    networks: [internal]
+
+  # --- Bordure ---------------------------------------------------------------
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?requis}
+      DASHBOARD_DOMAIN: ${DASHBOARD_DOMAIN:?requis}
+      REALTIME_DOMAIN: ${REALTIME_DOMAIN:?requis}
+      # Le gabarit est rendu vers /etc/nginx, et non vers conf.d : c'est une
+      # configuration complète avec son bloc `http`, pas un fragment d'hôte.
+      NGINX_ENVSUBST_OUTPUT_DIR: /etc/nginx
+      # Filtre **indispensable**. Sans lui, envsubst remplace toutes les
+      # variables du fichier, y compris celles de Nginx — `$host`, `$remote_addr`,
+      # `$connection_upgrade` — par des chaînes vides. La configuration reste
+      # syntaxiquement valide et le service démarre : la panne ne se révèle qu'au
+      # premier client, avec un `Host` vide et une limitation de débit qui compte
+      # tout le trafic sur une seule clé.
+      NGINX_ENVSUBST_FILTER: '^(API|DASHBOARD|REALTIME)_DOMAIN$$'
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/templates/nginx.conf.template:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./docker/nginx/certs:/etc/nginx/certs:ro
+      - certbot-www:/var/www/certbot
+    depends_on:
+      backend: { condition: service_started }
+      dashboard: { condition: service_started }
+      realtime: { condition: service_started }
+    networks: [internal]
+    healthcheck:
+      test: ['CMD', 'nginx', '-t']
+      interval: 60s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  mongo-data:
+  redis-data:
+  uploads:
+  certbot-www:
+
+networks:
+  # Réseau interne unique. Seul Nginx publie des ports ; tout le reste n'est
+  # joignable que par nom de service depuis ce réseau. Un attaquant ayant pris
+  # la main sur le conteneur Nginx trouve alors une base authentifiée, pas une
+  # base ouverte.
+  internal:
+    driver: bridge

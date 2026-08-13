@@ -10,3 +10,12 @@ package-lock.json
 
 # Généré par Next.js à chaque build : ne pas reformater.
 next-env.d.ts
+
+# Configuration Nginx.
+#
+# Prettier infère un parseur pour les fichiers « .inc » et reflue tout le
+# contenu : les commentaires « # … » se retrouvent fusionnés avec les directives
+# qui les suivent, et Nginx refuse alors de démarrer. Le fichier reste
+# syntaxiquement plausible à l'œil, ce qui rend la corruption difficile à voir
+# en relecture.
+docker/nginx/**
