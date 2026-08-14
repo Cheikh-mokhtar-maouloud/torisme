@@ -147,7 +147,11 @@ export function Chip({
         // Un libellé plus long que sa pastille doit être abrégé, jamais replié :
         // une deuxième ligne déformerait la rangée entière.
         numberOfLines={1}
-        style={[styles.chipLabel, fill && styles.chipLabelFill, selected && styles.chipLabelSelected]}
+        style={[
+          styles.chipLabel,
+          fill && styles.chipLabelFill,
+          selected && styles.chipLabelSelected,
+        ]}
       >
         {label}
       </Text>
