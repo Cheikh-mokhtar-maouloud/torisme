@@ -72,3 +72,6 @@ backups/*
 # Certificats TLS : la cle privee ne doit jamais entrer dans le depot.
 docker/nginx/certs/*
 !docker/nginx/certs/.gitkeep
+
+# Surcharge Docker locale (ports de developpement).
+docker-compose.override.yml
