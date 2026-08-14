@@ -126,21 +126,43 @@ export function Chip({
   label,
   selected = false,
   onPress,
+  fill = false,
 }: {
   label: string;
   selected?: boolean;
   onPress?: () => void;
+  /**
+   * Partage la largeur disponible avec les autres pastilles de la rangée.
+   *
+   * `flexGrow` et non `flex` : `flex: 1` impose aussi une base nulle, si bien
+   * que toutes les pastilles finiraient de la même largeur quel que soit leur
+   * libellé — « Sites » aussi large que « Restaurants ». Ici chacune part de sa
+   * largeur naturelle et ne se partage que l'espace restant.
+   */
+  fill?: boolean;
 }) {
   const content = (
-    <View style={[styles.chip, selected && styles.chipSelected]}>
-      <Text style={[styles.chipLabel, selected && styles.chipLabelSelected]}>{label}</Text>
+    <View style={[styles.chip, fill && styles.chipFill, selected && styles.chipSelected]}>
+      <Text
+        // Un libellé plus long que sa pastille doit être abrégé, jamais replié :
+        // une deuxième ligne déformerait la rangée entière.
+        numberOfLines={1}
+        style={[styles.chipLabel, fill && styles.chipLabelFill, selected && styles.chipLabelSelected]}
+      >
+        {label}
+      </Text>
     </View>
   );
 
   if (!onPress) return content;
 
   return (
-    <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={fill ? styles.chipPressableFill : undefined}
+    >
       {content}
     </Pressable>
   );
@@ -327,6 +349,14 @@ const styles = StyleSheet.create({
   // réservé aux actions, et le contraste noir/blanc se lit mieux qu'un teal sur
   // blanc à cette taille de texte.
   chipSelected: { backgroundColor: colors.neutral[900] },
+  /*
+   * En mode étiré, le rembourrage horizontal se réduit : c'est la largeur
+   * partagée qui donne sa taille à la pastille, et un rembourrage généreux
+   * n'ajouterait que du vide au détriment du texte.
+   */
+  chipFill: { paddingHorizontal: spacing.sm, alignItems: 'center' },
+  chipPressableFill: { flexGrow: 1, flexBasis: 'auto' },
+  chipLabelFill: { textAlign: 'center' },
   chipLabel: { ...typography.caption, color: colors.text.secondary, fontWeight: '600' },
   chipLabelSelected: { color: colors.text.inverse },
 

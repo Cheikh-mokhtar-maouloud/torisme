@@ -74,21 +74,28 @@ export function ExploreScreen() {
         />
       </View>
 
-      <FlatList
-        horizontal
-        data={TABS}
-        keyExtractor={(tab) => tab.type}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabs}
-        style={styles.tabsList}
-        renderItem={({ item }) => (
+      {/*
+       * Une rangée simple, et non un `FlatList` horizontal.
+       *
+       * Les quatre onglets sont fixes : la virtualisation n'apporte rien, et la
+       * liste imposait à la rangée une hauteur inférieure à celle des pastilles,
+       * qui apparaissaient rognées en haut et en bas. Une `View` se dimensionne
+       * sur son contenu, donc le défaut ne peut pas revenir.
+       *
+       * Les quatre tiennent sur la largeur de l'écran, comme les filtres de la
+       * carte : rien à faire défiler pour découvrir un onglet caché.
+       */}
+      <View style={styles.tabs}>
+        {TABS.map((tab) => (
           <Chip
-            label={item.label}
-            selected={activeTab === item.type}
-            onPress={() => setActiveTab(item.type)}
+            key={tab.type}
+            label={tab.label}
+            selected={activeTab === tab.type}
+            onPress={() => setActiveTab(tab.type)}
+            fill
           />
-        )}
-      />
+        ))}
+      </View>
 
       <ExploreList tab={activeTab} search={search} bottomInset={insets.bottom} />
     </View>
@@ -244,8 +251,12 @@ function ExploreList({
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface.background },
   searchRow: { paddingHorizontal: layout.screenPadding, paddingBottom: spacing.md },
-  tabsList: { flexGrow: 0 },
-  tabs: { paddingHorizontal: layout.screenPadding, gap: spacing.sm, paddingVertical: spacing.sm },
+  tabs: {
+    flexDirection: 'row',
+    paddingHorizontal: layout.screenPadding,
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
   /*
    * `gap` généreux entre les fiches : sans bordure ni fond pour les séparer,
    * c'est le vide qui fait la limite. Douze points ne suffisaient plus une fois
