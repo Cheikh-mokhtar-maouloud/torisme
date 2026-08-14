@@ -19,7 +19,8 @@
     "test:notifications": "node scripts/notification-test.mjs",
     "test:security": "node scripts/security-test.mjs",
     "build:ops": "esbuild scripts/create-admin.ts scripts/seed.ts --bundle --platform=node --target=node20 --format=cjs --outdir=dist-ops",
-    "audit:indexes": "node scripts/index-audit.mjs"
+    "audit:indexes": "node scripts/index-audit.mjs",
+    "import:osm": "node scripts/import-osm.mjs"
   },
   "dependencies": {
     "@tourism/shared": "*",
