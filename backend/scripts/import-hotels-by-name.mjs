@@ -465,6 +465,14 @@ async function run() {
         countryCode: 'MR',
       },
       location: { type: 'Point', coordinates: [place.longitude, place.latitude] },
+      /*
+       * La devise est exigée par le schéma, sans valeur par défaut : elle fixe
+       * l'unité de tous les tarifs de l'établissement, et la déduire du pays
+       * serait faux dès le premier hôtel qui affiche ses prix en euros.
+       *
+       * L'ouguiya, seule des trois valeurs admises qui ait un sens ici.
+       */
+      currency: 'MRU',
       // Publié d'emblée : ces fiches ont été demandées nommément, les laisser en
       // brouillon imposerait une seconde passe sans rien vérifier de plus.
       status: 'PUBLISHED',
@@ -478,7 +486,21 @@ async function run() {
       // Évite qu'un doublon interne à la liste soit créé deux fois.
       existing.push(payload.data);
     } else {
-      console.log(`échec      ${name}  HTTP ${status}`);
+      /*
+       * Le détail du refus est affiché, pas seulement le code.
+       *
+       * Un « HTTP 422 » seul n'apprend rien : il a fallu rejouer la requête à
+       * la main pour découvrir qu'il manquait la devise. L'essai à blanc
+       * n'envoie rien, donc il ne peut pas révéler ce genre de manque — la
+       * première exécution réelle est le seul moment où le schéma se prononce.
+       */
+      const detail = payload?.error?.fields
+        ? Object.entries(payload.error.fields)
+            .map(([field, messages]) => `${field} : ${[].concat(messages).join(', ')}`)
+            .join(' | ')
+        : (payload?.error?.message ?? '');
+
+      console.log(`échec      ${name}  HTTP ${status}${detail ? `  ${detail}` : ''}`);
       counts.failed += 1;
     }
   }
