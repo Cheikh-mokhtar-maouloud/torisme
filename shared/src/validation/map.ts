@@ -54,7 +54,20 @@ export const mapQuerySchema = z
      * devient illisible et le rendu des marqueurs s'effondre : le regroupement
      * en grappes serait alors la vraie réponse, pas un plafond plus haut.
      */
-    limit: z.coerce.number().int().min(1).max(200).default(60),
+    /*
+     * Plafond relevé à 1 000.
+     *
+     * Les 60 par défaut suffisaient à un jeu de démonstration de quelques
+     * lieux ; avec près de cinq cents fiches réelles, ils masquaient la
+     * majorité de la carte sans que rien ne le signale — l'utilisateur voyait
+     * une carte crédible mais incomplète, ce qui est pire qu'une carte vide.
+     *
+     * Un marqueur pèse environ 150 octets : mille tiennent en 150 Ko, et
+     * Leaflet en affiche plusieurs milliers sans peine. Le plafond reste, car
+     * une requête sans borne sur une base qui grossit finirait par transférer
+     * tout le pays à chaque déplacement.
+     */
+    limit: z.coerce.number().int().min(1).max(1_000).default(300),
   })
   .superRefine((value, ctx) => {
     const boundsKeys = ['swLat', 'swLng', 'neLat', 'neLng'] as const;

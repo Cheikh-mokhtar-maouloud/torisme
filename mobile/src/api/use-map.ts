@@ -38,7 +38,18 @@ export function useMapMarkers(bounds: MapBounds | null, types: PlaceType[]) {
               }
             : {}),
           ...(types.length > 0 ? { types: types.join(',') } : {}),
-          limit: 100,
+          /*
+           * La limite s'applique **par catégorie**, non au total : 500 autorise
+           * donc 500 hôtels, 500 restaurants et 500 sites. Le pays en compte
+           * 472 en tout, la marge est large.
+           *
+           * Le plafond du schéma est à 1 000. Toute hausse ici doit suivre le
+           * déploiement du backend, jamais le précéder : un serveur tolérant
+           * devant un client ancien fonctionne, l'inverse renvoie une erreur de
+           * validation et la carte affiche « Données invalides » sans que la
+           * cause soit devinable.
+           */
+          limit: 500,
         })}`,
         signal,
       ),
