@@ -10,7 +10,13 @@ import type { MapMarker } from '@tourism/shared/types';
 
 import { useMapMarkers, type MapBounds } from '../api/use-map';
 import { LeafletMap, type LeafletMapHandle } from '../components/leaflet-map';
-import { MapMarkerCard, MARKER_COLORS, TYPE_LABELS } from '../components/map-marker-card';
+import {
+  formatDistance,
+  MapMarkerCard,
+  MARKER_COLORS,
+  TYPE_LABELS,
+} from '../components/map-marker-card';
+import { fetchRoute, formatDuration, type Route } from '../api/routing';
 import { ErrorState } from '../components/ui';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { colors, radius, shadow, spacing, typography } from '../theme';
@@ -59,6 +65,19 @@ export function MapScreen() {
   const [selected, setSelected] = useState<MapMarker | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [locationNotice, setLocationNotice] = useState<string>();
+  /**
+   * Dernière position connue.
+   *
+   * Conservée dans l'état, et pas seulement transmise à la carte : c'est le
+   * point de départ de tout itinéraire, et la redemander à chaque calcul
+   * imposerait une attente du GPS que l'utilisateur ne comprendrait pas.
+   */
+  const [userPosition, setUserPosition] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [route, setRoute] = useState<Route | null>(null);
+  const [isRouting, setIsRouting] = useState(false);
 
   // Le déplacement de la carte émet en continu : sans temporisation, un seul
   // geste déclencherait des dizaines de requêtes.
@@ -109,12 +128,67 @@ export function MapScreen() {
         accuracy: Location.Accuracy.Balanced,
       });
 
-      mapRef.current?.centerOn(position.coords.latitude, position.coords.longitude, 14);
+      const coords = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+
+      setUserPosition(coords);
+      // Le repère est dessiné **avant** le recentrage : l'utilisateur voit le
+      // point apparaître puis la carte s'y rendre, plutôt qu'un déplacement
+      // vers un endroit qui paraît vide.
+      mapRef.current?.setUserLocation(
+        coords.latitude,
+        coords.longitude,
+        position.coords.accuracy ?? undefined,
+      );
+      mapRef.current?.centerOn(coords.latitude, coords.longitude, 14);
     } catch {
       setLocationNotice('Position indisponible. Vérifiez que la localisation est activée.');
     } finally {
       setIsLocating(false);
     }
+  };
+
+  /**
+   * Calcule et trace l'itinéraire vers le lieu sélectionné.
+   *
+   * L'échec n'affiche pas d'erreur : il retombe sur la distance à vol d'oiseau,
+   * qui reste une information utile. Un service de calcul indisponible ne
+   * justifie pas d'alarmer quelqu'un qui voulait seulement savoir si un hôtel
+   * est loin.
+   */
+  const showRoute = async (destination: MapMarker) => {
+    if (!userPosition) return;
+
+    setIsRouting(true);
+    setLocationNotice(undefined);
+
+    try {
+      const found = await fetchRoute(userPosition, {
+        latitude: destination.latitude,
+        longitude: destination.longitude,
+      });
+
+      if (!found) {
+        setRoute(null);
+        mapRef.current?.clearRoute();
+        setLocationNotice('Itinéraire indisponible. Distance à vol d’oiseau affichée.');
+        return;
+      }
+
+      setRoute(found);
+      mapRef.current?.setRoute(found.coordinates);
+    } finally {
+      setIsRouting(false);
+    }
+  };
+
+  /** Change de lieu : l'itinéraire précédent ne le concerne plus. */
+  const selectMarker = (marker: MapMarker) => {
+    setSelected(marker);
+    setRoute(null);
+    mapRef.current?.clearRoute();
   };
 
   const markers = data?.markers ?? [];
@@ -126,7 +200,7 @@ export function MapScreen() {
         markers={markers}
         initialCenter={INITIAL_CENTER}
         onBoundsChange={handleBoundsChange}
-        onMarkerPress={setSelected}
+        onMarkerPress={selectMarker}
         // Toucher la carte hors d'un marqueur referme la fiche : c'est le geste
         // attendu, et il évite d'avoir à viser la petite croix.
         onMapPress={() => setSelected(null)}
@@ -257,9 +331,22 @@ export function MapScreen() {
       {selected ? (
         <MapMarkerCard
           marker={selected}
-          onClose={() => setSelected(null)}
+          onClose={() => {
+            setSelected(null);
+            setRoute(null);
+            mapRef.current?.clearRoute();
+          }}
           onPress={() => openDetail(navigation, selected)}
           onLayout={setCardHeight}
+          // L'action n'est proposée que si la position est connue : sans point
+          // de départ, l'itinéraire n'a pas de sens.
+          onRoute={userPosition ? () => void showRoute(selected) : undefined}
+          routeSummary={
+            route
+              ? `${formatDistance(route.distanceMeters)} · ${formatDuration(route.durationSeconds)} en voiture`
+              : undefined
+          }
+          isRouting={isRouting}
         />
       ) : null}
     </View>

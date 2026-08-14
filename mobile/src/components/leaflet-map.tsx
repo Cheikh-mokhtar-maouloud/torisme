@@ -29,6 +29,11 @@ import { MARKER_COLORS } from './map-marker-card';
 export interface LeafletMapHandle {
   /** Recentre la vue. Utilisé par le bouton « ma position ». */
   centerOn: (latitude: number, longitude: number, zoom?: number) => void;
+  /** Place le repère de position, avec le rayon de précision du GPS. */
+  setUserLocation: (latitude: number, longitude: number, accuracy?: number) => void;
+  /** Trace un itinéraire. Le tableau est une suite de [latitude, longitude]. */
+  setRoute: (coordinates: [number, number][]) => void;
+  clearRoute: () => void;
 }
 
 interface LeafletMapProps {
@@ -65,6 +70,14 @@ function buildHtml(center: { latitude: number; longitude: number; zoom: number }
       border: 3px solid #ffffff;
       box-shadow: 0 1px 4px rgba(0,0,0,0.4);
     }
+    /* Point de position : cercle plein bleu, cerné de blanc, comme le repère
+       standard des applications de cartographie. La convention est assez
+       établie pour qu'on la suive plutôt que d'inventer un symbole. */
+    .me {
+      width: 16px; height: 16px; border-radius: 50%;
+      background: #2563eb; border: 3px solid #ffffff;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.2);
+    }
     .leaflet-control-attribution { font-size: 9px; }
   </style>
 </head>
@@ -85,6 +98,9 @@ function buildHtml(center: { latitude: number; longitude: number; zoom: number }
     }).addTo(map);
 
     var layer = L.layerGroup().addTo(map);
+    // Calque distinct pour la position : effacer les marqueurs de lieux ne doit
+    // pas effacer le repère de l'utilisateur.
+    var layerMe = L.layerGroup().addTo(map);
 
     function send(payload) {
       window.ReactNativeWebView.postMessage(JSON.stringify(payload));
@@ -128,6 +144,59 @@ function buildHtml(center: { latitude: number; longitude: number; zoom: number }
       map.setView([lat, lng], zoom || map.getZoom(), { animate: true });
     };
 
+    var meMarker = null;
+    var meCircle = null;
+
+    /*
+     * Position de l'utilisateur.
+     *
+     * Leaflet ne dessine rien de lui-meme, contrairement au reglage
+     * showsUserLocation de Google Maps : sans ce marqueur, recentrer la vue
+     * deplacait bien la carte, mais aucun repere n'indiquait ou l'on se
+     * trouvait.
+     *
+     * Attention en modifiant ce bloc : il vit dans un litteral de gabarit
+     * JavaScript. Un accent grave y terminerait la chaine, et l'erreur qui en
+     * resulte designe une ligne sans rapport.
+     */
+    window.setUserLocation = function (lat, lng, accuracy) {
+      if (meMarker) { layerMe.removeLayer(meMarker); }
+      if (meCircle) { layerMe.removeLayer(meCircle); }
+
+      meMarker = L.marker([lat, lng], {
+        icon: L.divIcon({ className: '', html: '<div class="me"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }),
+        // Au-dessus des lieux : c'est le repère que l'on cherche en premier.
+        zIndexOffset: 1000
+      }).addTo(layerMe);
+
+      // Le cercle traduit la précision annoncée par le GPS. L'omettre laisserait
+      // croire à une position exacte au mètre près, ce qu'elle n'est jamais.
+      if (accuracy && accuracy > 0) {
+        meCircle = L.circle([lat, lng], {
+          radius: accuracy, color: '#2563eb', weight: 1,
+          fillColor: '#2563eb', fillOpacity: 0.12
+        }).addTo(layerMe);
+      }
+    };
+
+    var routeLine = null;
+
+    /** Trace l'itinéraire et cadre la vue pour le montrer en entier. */
+    window.setRoute = function (coords) {
+      if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+      if (!coords || coords.length === 0) return;
+
+      routeLine = L.polyline(coords, {
+        color: '#0d9488', weight: 5, opacity: 0.85, lineJoin: 'round'
+      }).addTo(map);
+
+      map.fitBounds(routeLine.getBounds(), { padding: [40, 120] });
+    };
+
+    window.clearRoute = function () {
+      if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+    };
+
     // Premier envoi : l'application a besoin du cadre visible pour charger les
     // marqueurs, avant tout déplacement de l'utilisateur.
     reportBounds();
@@ -151,6 +220,17 @@ export const LeafletMap = forwardRef<LeafletMapHandle, LeafletMapProps>(function
       webRef.current?.injectJavaScript(
         `window.centerOn(${latitude}, ${longitude}, ${zoom ?? 'undefined'}); true;`,
       );
+    },
+    setUserLocation(latitude, longitude, accuracy) {
+      webRef.current?.injectJavaScript(
+        `window.setUserLocation(${latitude}, ${longitude}, ${accuracy ?? 0}); true;`,
+      );
+    },
+    setRoute(coordinates) {
+      webRef.current?.injectJavaScript(`window.setRoute(${JSON.stringify(coordinates)}); true;`);
+    },
+    clearRoute() {
+      webRef.current?.injectJavaScript('window.clearRoute(); true;');
     },
   }));
 

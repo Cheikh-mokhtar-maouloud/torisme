@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PlaceType } from '@tourism/shared/constants';
@@ -44,6 +44,9 @@ export function MapMarkerCard({
   onPress,
   onClose,
   onLayout,
+  onRoute,
+  routeSummary,
+  isRouting = false,
 }: {
   marker: MapMarker;
   onPress: () => void;
@@ -57,6 +60,16 @@ export function MapMarkerCard({
    * taille du texte dans les réglages du système.
    */
   onLayout?: (height: number) => void;
+  /**
+   * Demande d'itinéraire. Absent, l'action n'est pas proposée — c'est le cas
+   * tant que la position de l'utilisateur est inconnue : un itinéraire sans
+   * point de départ n'a pas de sens, et un bouton qui explique qu'il ne peut
+   * rien faire vaut moins qu'un bouton absent.
+   */
+  onRoute?: (() => void) | undefined;
+  /** Résumé de l'itinéraire calculé, affiché à la place de l'action. */
+  routeSummary?: string | undefined;
+  isRouting?: boolean;
 }) {
   const insets = useSafeAreaInsets();
 
@@ -109,6 +122,31 @@ export function MapMarkerCard({
         </View>
       </Pressable>
 
+      {/*
+        L'action d'itinéraire est **hors** de la zone cliquable de la fiche.
+        Imbriquée dedans, l'appui déclencherait aussi l'ouverture du lieu :
+        l'utilisateur demanderait un trajet et se retrouverait sur une autre
+        page.
+      */}
+      {onRoute || routeSummary ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Itinéraire vers ${marker.name}`}
+          onPress={onRoute}
+          disabled={!onRoute || isRouting}
+          style={({ pressed }) => [styles.routeBar, pressed && styles.pressed]}
+        >
+          {isRouting ? (
+            <ActivityIndicator size="small" color={colors.brand[700]} />
+          ) : (
+            <Icon name="excursion" size={16} color={colors.brand[700]} />
+          )}
+          <Text style={styles.routeLabel}>
+            {isRouting ? 'Calcul de l’itinéraire…' : (routeSummary ?? 'Itinéraire')}
+          </Text>
+        </Pressable>
+      ) : null}
+
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Fermer"
@@ -149,6 +187,28 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   pressed: { opacity: 0.9 },
+
+  /*
+   * Barre d'itinéraire, posée sous la fiche et rattachée à elle par un coin
+   * supérieur droit : elle se lit comme un prolongement, non comme un second
+   * élément flottant.
+   */
+  routeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface.background,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  routeLabel: { ...typography.caption, color: colors.brand[700], fontWeight: '700' },
 
   thumb: { width: 92, height: 92, borderRadius: radius.md, overflow: 'hidden' },
   body: { flex: 1, gap: 1, paddingVertical: 2, paddingRight: spacing.lg },
