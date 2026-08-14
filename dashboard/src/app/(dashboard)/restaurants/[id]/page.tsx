@@ -67,7 +67,10 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
         </Card>
 
         <Card className="divide-y divide-slate-100 text-sm">
-          <Row label="Gamme de prix" value={'€'.repeat(restaurant.priceRange)} />
+          <Row
+            label="Gamme de prix"
+            value={restaurant.priceRange ? '€'.repeat(restaurant.priceRange) : '—'}
+          />
           <Row label="Téléphone" value={restaurant.phone ?? '—'} />
           <Row label="Menu" value={restaurant.menuUrl ?? '—'} />
           <Row

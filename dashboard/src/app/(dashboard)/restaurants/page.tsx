@@ -128,7 +128,7 @@ const COLUMNS: Column<Restaurant>[] = [
     key: 'price',
     header: 'Gamme',
     hideOnMobile: true,
-    cell: (restaurant) => '€'.repeat(restaurant.priceRange),
+    cell: (restaurant) => (restaurant.priceRange ? '€'.repeat(restaurant.priceRange) : '—'),
   },
   {
     key: 'status',

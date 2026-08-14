@@ -49,7 +49,9 @@ export function RestaurantDetailScreen() {
         <>
           <View style={styles.metaRow}>
             <Rating value={restaurant.rating} count={restaurant.reviewCount} />
-            <Text style={styles.priceRange}>{'€'.repeat(restaurant.priceRange)}</Text>
+            {restaurant.priceRange ? (
+              <Text style={styles.priceRange}>{'€'.repeat(restaurant.priceRange)}</Text>
+            ) : null}
           </View>
 
           {restaurant.cuisineTypes.length > 0 ? (

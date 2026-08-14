@@ -83,7 +83,7 @@ export interface Room extends Timestamps {
 
 export interface Restaurant extends PlaceBase {
   cuisineTypes: string[];
-  priceRange: 1 | 2 | 3 | 4;
+  priceRange?: 1 | 2 | 3 | 4;
   phone?: string;
   openingHours?: OpeningHours;
   menuUrl?: string;

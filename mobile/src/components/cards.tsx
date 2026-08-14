@@ -114,7 +114,7 @@ export function RestaurantCard({
       images={restaurant.images}
       rating={restaurant.rating}
       reviewCount={restaurant.reviewCount}
-      footer={'€'.repeat(restaurant.priceRange)}
+      footer={restaurant.priceRange ? '€'.repeat(restaurant.priceRange) : ''}
       onPress={onPress}
     />
   );
