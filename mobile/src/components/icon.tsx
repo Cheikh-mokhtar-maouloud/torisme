@@ -1,4 +1,4 @@
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 
 import { colors } from '../theme';
 
@@ -29,10 +29,6 @@ export const ICONS = {
   map: 'map',
   ticket: 'bookmark',
   user: 'user',
-  // « key » et non « home » : l'onglet Accueil utilise déjà la maison, et deux
-  // icônes identiques pour deux sens différents sur le même écran se lisent
-  // comme une erreur.
-  hotel: 'key',
   attraction: 'camera',
   excursion: 'compass',
   restaurant: 'coffee',
@@ -62,7 +58,24 @@ export const ICONS = {
   globe: 'globe',
 } as const;
 
-export type IconName = keyof typeof ICONS;
+/**
+ * Icônes empruntées à Ionicons, faute d'équivalent chez Feather.
+ *
+ * L'hôtel en est le seul cas. Feather n'a pas de lit : le dessin employé
+ * jusqu'ici était une **clé**, qui ne se comprend qu'une fois qu'on sait
+ * qu'elle désigne une chambre — un symbole qui demande à être expliqué a déjà
+ * échoué. Le lit, lui, se lit sans légende.
+ *
+ * Le mélange de familles reste à éviter, pour la raison dite plus haut : les
+ * épaisseurs de trait diffèrent et l'ensemble paraît assemblé par accident. La
+ * variante « outline » d'Ionicons est celle qui s'en approche le plus. Ce doit
+ * rester l'exception, non le début d'un second jeu.
+ */
+const IONICONS = {
+  hotel: 'bed-outline',
+} as const;
+
+export type IconName = keyof typeof ICONS | keyof typeof IONICONS;
 
 interface IconProps {
   name: IconName;
@@ -76,5 +89,15 @@ interface IconProps {
  * toujours trop lourde.
  */
 export function Icon({ name, size = 20, color = colors.text.primary }: IconProps) {
-  return <Feather name={ICONS[name]} size={size} color={color} />;
+  if (name in IONICONS) {
+    const ionName = IONICONS[name as keyof typeof IONICONS];
+    /*
+     * Légèrement agrandie : à taille nominale égale, un glyphe d'Ionicons
+     * occupe moins de sa case qu'un Feather et paraît plus petit à côté de lui.
+     * Le facteur rétablit l'équilibre optique dans la rangée des catégories.
+     */
+    return <Ionicons name={ionName} size={Math.round(size * 1.15)} color={color} />;
+  }
+
+  return <Feather name={ICONS[name as keyof typeof ICONS]} size={size} color={color} />;
 }
