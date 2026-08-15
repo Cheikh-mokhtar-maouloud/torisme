@@ -1,0 +1,132 @@
+{
+  "common": {
+    "retry": "Réessayer",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "save": "Enregistrer",
+    "seeAll": "Tout voir",
+    "search": "Rechercher…",
+    "loading": "Chargement…",
+    "errorTitle": "Une erreur est survenue",
+    "errorGeneric": "Chargement impossible.",
+    "errorNetwork": "Impossible de joindre le serveur. Vérifiez votre connexion.",
+    "empty": "Rien à afficher pour le moment.",
+    "noReviews": "Pas encore d’avis",
+    "perNight": " / nuit",
+    "perEntry": " / entrée",
+    "perSeat": " / place",
+    "free": "Entrée gratuite",
+    "from": "dès {{price}}"
+  },
+  "units": {
+    "nights_one": "{{count}} nuit",
+    "nights_other": "{{count}} nuits",
+    "guests_one": "{{count}} voyageur",
+    "guests_other": "{{count}} voyageurs",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "hours_one": "{{count}} h",
+    "hours_other": "{{count}} h",
+    "hoursMinutes_one": "{{count}} h {{minutes}}",
+    "hoursMinutes_other": "{{count}} h {{minutes}}",
+    "days_one": "{{count}} j",
+    "days_other": "{{count}} j",
+    "daysHours_one": "{{count}} j {{hours}} h",
+    "daysHours_other": "{{count}} j {{hours}} h"
+  },
+  "tabs": {
+    "home": "Accueil",
+    "explore": "Explorer",
+    "map": "Carte",
+    "bookings": "Réservations",
+    "profile": "Profil"
+  },
+  "types": {
+    "hotel": "Hôtel",
+    "hotels": "Hôtels",
+    "restaurant": "Restaurant",
+    "restaurants": "Restaurants",
+    "attraction": "Site",
+    "attractions": "Sites",
+    "excursion": "Excursion",
+    "excursions": "Excursions",
+    "room": "Chambre"
+  },
+  "home": {
+    "heading": "Où partez-vous ?",
+    "searchPlaceholder": "Rechercher une destination…",
+    "searchLabel": "Rechercher un hôtel, un restaurant ou une attraction",
+    "popularHotels": "Hôtels populaires",
+    "attractionsToDiscover": "Attractions à découvrir",
+    "scheduledExcursions": "Excursions programmées",
+    "whereToEat": "Où manger"
+  },
+  "map": {
+    "noPlacesHere": "Aucun lieu dans cette zone",
+    "myLocation": "Ma position",
+    "route": "Itinéraire",
+    "routeUnavailable": "Itinéraire indisponible",
+    "calculating": "Calcul…",
+    "openPlace": "Ouvrir la fiche de {{name}}",
+    "routeTo": "Itinéraire vers {{name}}",
+    "filterLabel": "{{type}}, {{count}} sur la carte",
+    "permissionDenied": "Autorisation refusée. La carte reste centrée sur Nouakchott.",
+    "positionUnavailable": "Position indisponible. Vérifiez que la localisation est activée.",
+    "routeFallback": "Itinéraire indisponible. Distance à vol d’oiseau affichée.",
+    "unavailable": "Carte indisponible."
+  },
+  "screens": {
+    "stay": "Votre séjour",
+    "booking": "Réservation",
+    "book": "Réserver",
+    "notifications": "Notifications",
+    "favorites": "Mes favoris",
+    "writeReview": "Donner mon avis",
+    "editProfile": "Profil",
+    "changePassword": "Mot de passe",
+    "login": "Connexion",
+    "register": "Créer un compte"
+  },
+  "favorite": {
+    "add": "Ajouter aux favoris",
+    "remove": "Retirer des favoris",
+    "loginPrompt": "Connectez-vous pour enregistrer vos favoris."
+  },
+  "reviews": {
+    "title": "Avis",
+    "empty": "Aucun avis pour le moment. Soyez le premier.",
+    "write": "Donner mon avis",
+    "verified": "Séjour vérifié",
+    "report": "Signaler",
+    "reportTitle": "Signaler cet avis",
+    "reportMessage": "Il sera examiné par l’équipe de modération. Il reste visible entre-temps.",
+    "reportConfirm": "Signaler",
+    "reportThanks": "Merci",
+    "reportSent": "Votre signalement a bien été transmis."
+  },
+  "language": {
+    "title": "Langue",
+    "restartTitle": "Redémarrage nécessaire",
+    "restartMessage": "L’arabe s’écrit de droite à gauche. Fermez puis rouvrez l’application pour que la mise en page suive.",
+    "understood": "J’ai compris"
+  },
+  "explore": {
+    "noResults": "Aucun résultat",
+    "nothingPublished": "Aucun contenu publié pour le moment.",
+    "noMatch": "Rien ne correspond à « {{term}} ». Essayez un autre terme."
+  },
+  "profile": {
+    "yourProfile": "Votre profil",
+    "loginPrompt": "Connectez-vous pour gérer votre compte et vos réservations.",
+    "signIn": "Se connecter",
+    "myAccount": "Mon compte",
+    "myContent": "Mes contenus",
+    "editProfile": "Modifier le profil",
+    "logout": "Se déconnecter",
+    "logoutTitle": "Déconnexion",
+    "logoutConfirm": "Voulez-vous vous déconnecter ?",
+    "memberSince": "Membre depuis",
+    "phone": "Téléphone",
+    "changePassword": "Changer le mot de passe"
+  }
+}

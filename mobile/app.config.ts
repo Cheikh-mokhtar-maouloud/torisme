@@ -41,6 +41,14 @@ const config: ExpoConfig = {
   plugins: [
     'expo-secure-store',
     'expo-image',
+    /*
+     * Nécessaire pour lire la langue du téléphone au premier lancement, et
+     * surtout pour que la compilation native déclare l'arabe parmi les langues
+     * prises en charge. Sans cette déclaration, iOS refuse de basculer
+     * l'interface en écriture de droite à gauche, quel que soit le réglage
+     * demandé depuis le code.
+     */
+    'expo-localization',
     [
       'expo-location',
       {

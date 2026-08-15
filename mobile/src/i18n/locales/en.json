@@ -1,0 +1,132 @@
+{
+  "common": {
+    "retry": "Try again",
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save",
+    "seeAll": "See all",
+    "search": "Search…",
+    "loading": "Loading…",
+    "errorTitle": "Something went wrong",
+    "errorGeneric": "Unable to load.",
+    "errorNetwork": "Can’t reach the server. Check your connection.",
+    "empty": "Nothing to show yet.",
+    "noReviews": "No reviews yet",
+    "perNight": " / night",
+    "perEntry": " / entry",
+    "perSeat": " / seat",
+    "free": "Free entry",
+    "from": "from {{price}}"
+  },
+  "units": {
+    "nights_one": "{{count}} night",
+    "nights_other": "{{count}} nights",
+    "guests_one": "{{count}} guest",
+    "guests_other": "{{count}} guests",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "hours_one": "{{count}} h",
+    "hours_other": "{{count}} h",
+    "hoursMinutes_one": "{{count}} h {{minutes}}",
+    "hoursMinutes_other": "{{count}} h {{minutes}}",
+    "days_one": "{{count}} d",
+    "days_other": "{{count}} d",
+    "daysHours_one": "{{count}} d {{hours}} h",
+    "daysHours_other": "{{count}} d {{hours}} h"
+  },
+  "tabs": {
+    "home": "Home",
+    "explore": "Explore",
+    "map": "Map",
+    "bookings": "Bookings",
+    "profile": "Profile"
+  },
+  "types": {
+    "hotel": "Hotel",
+    "hotels": "Hotels",
+    "restaurant": "Restaurant",
+    "restaurants": "Restaurants",
+    "attraction": "Site",
+    "attractions": "Sites",
+    "excursion": "Excursion",
+    "excursions": "Excursions",
+    "room": "Room"
+  },
+  "home": {
+    "heading": "Where are you going?",
+    "searchPlaceholder": "Search for a destination…",
+    "searchLabel": "Search for a hotel, restaurant or attraction",
+    "popularHotels": "Popular hotels",
+    "attractionsToDiscover": "Places to discover",
+    "scheduledExcursions": "Scheduled excursions",
+    "whereToEat": "Where to eat"
+  },
+  "map": {
+    "noPlacesHere": "No places in this area",
+    "myLocation": "My location",
+    "route": "Directions",
+    "routeUnavailable": "Directions unavailable",
+    "calculating": "Calculating…",
+    "openPlace": "Open {{name}}",
+    "routeTo": "Directions to {{name}}",
+    "filterLabel": "{{type}}, {{count}} on the map",
+    "permissionDenied": "Permission denied. The map stays centred on Nouakchott.",
+    "positionUnavailable": "Position unavailable. Check that location is turned on.",
+    "routeFallback": "Directions unavailable. Straight-line distance shown.",
+    "unavailable": "Map unavailable."
+  },
+  "screens": {
+    "stay": "Your stay",
+    "booking": "Booking",
+    "book": "Book",
+    "notifications": "Notifications",
+    "favorites": "My favourites",
+    "writeReview": "Write a review",
+    "editProfile": "Profile",
+    "changePassword": "Password",
+    "login": "Sign in",
+    "register": "Create an account"
+  },
+  "favorite": {
+    "add": "Add to favourites",
+    "remove": "Remove from favourites",
+    "loginPrompt": "Sign in to save your favourites."
+  },
+  "reviews": {
+    "title": "Reviews",
+    "empty": "No reviews yet. Be the first.",
+    "write": "Write a review",
+    "verified": "Verified stay",
+    "report": "Report",
+    "reportTitle": "Report this review",
+    "reportMessage": "It will be examined by the moderation team. It stays visible in the meantime.",
+    "reportConfirm": "Report",
+    "reportThanks": "Thank you",
+    "reportSent": "Your report has been sent."
+  },
+  "language": {
+    "title": "Language",
+    "restartTitle": "Restart required",
+    "restartMessage": "Arabic is written right to left. Close and reopen the app so the layout follows.",
+    "understood": "Got it"
+  },
+  "explore": {
+    "noResults": "No results",
+    "nothingPublished": "Nothing published yet.",
+    "noMatch": "Nothing matches “{{term}}”. Try another term."
+  },
+  "profile": {
+    "yourProfile": "Your profile",
+    "loginPrompt": "Sign in to manage your account and bookings.",
+    "signIn": "Sign in",
+    "myAccount": "My account",
+    "myContent": "My content",
+    "editProfile": "Edit profile",
+    "logout": "Sign out",
+    "logoutTitle": "Sign out",
+    "logoutConfirm": "Do you want to sign out?",
+    "memberSince": "Member since",
+    "phone": "Phone",
+    "changePassword": "Change password"
+  }
+}
