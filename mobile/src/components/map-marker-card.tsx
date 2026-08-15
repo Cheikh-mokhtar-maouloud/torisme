@@ -5,17 +5,24 @@ import { PlaceType } from '@tourism/shared/constants';
 import type { MapMarker } from '@tourism/shared/types';
 
 import { formatMoney } from '../lib/format';
-import { colors, layout, radius, spacing, typography } from '../theme';
+import { accent, colors, layout, radius, spacing, typography } from '../theme';
 import { Icon } from './icon';
 import { PlaceImage } from './place-image';
 import { Rating } from './ui';
 
-/** Couleur par type : le repère visuel principal sur une carte dense. */
+/**
+ * Couleur par type : le repère visuel principal sur une carte dense.
+ *
+ * Reprise du thème, et non redéfinie ici. Ces mêmes teintes habillent les
+ * catégories de l'accueil : c'est ce qui permet d'associer un point orange à
+ * « Restaurants » sans avoir lu la légende. Deux tables séparées auraient fini
+ * par diverger sur une nuance, et le lien se serait rompu en silence.
+ */
 export const MARKER_COLORS: Record<PlaceType, string> = {
-  [PlaceType.HOTEL]: colors.brand[600],
-  [PlaceType.RESTAURANT]: '#d97706',
-  [PlaceType.ATTRACTION]: '#7c3aed',
-  [PlaceType.EXCURSION]: colors.sand[500],
+  [PlaceType.HOTEL]: accent.hotel.base,
+  [PlaceType.RESTAURANT]: accent.restaurant.base,
+  [PlaceType.ATTRACTION]: accent.attraction.base,
+  [PlaceType.EXCURSION]: accent.excursion.base,
 };
 
 export const TYPE_LABELS: Record<PlaceType, string> = {

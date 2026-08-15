@@ -71,6 +71,59 @@ export const colors = {
   },
 } as const;
 
+/**
+ * Couleurs de catégorie.
+ *
+ * Une teinte par type de lieu, la même sur la carte, sur l'accueil et sur les
+ * fiches. C'est ce qui fait la différence entre de la couleur et de la
+ * décoration : le point orange d'un marqueur et le disque orange d'une
+ * catégorie disent la même chose, donc la légende de la carte s'apprend sans
+ * être lue.
+ *
+ * `base` porte le trait et le texte, `tint` le fond. Les deux sont donnés
+ * plutôt que calculés : une teinte obtenue par transparence prend la couleur de
+ * ce qui est dessous, et ne tient donc pas sur une photographie.
+ *
+ * Ces valeurs étaient jusqu'ici enfermées dans le composant de la carte. Les
+ * remonter ici évite qu'un écran invente sa propre nuance d'orange — la dérive
+ * commence toujours par une seule exception.
+ */
+export const accent = {
+  hotel: { base: '#0d9488', tint: '#ccfbf1' },
+  restaurant: { base: '#d97706', tint: '#fef3c7' },
+  attraction: { base: '#7c3aed', tint: '#ede9fe' },
+  /*
+   * Quatre teintes franchement distinctes, et non quatre variations
+   * agréables ensemble.
+   *
+   * L'excursion a d'abord repris le sable de la marque, puis un ambre plus
+   * soutenu : sur la carte, ses points devenaient indiscernables de ceux des
+   * restaurants. À dix-huit pixels, deux nuances voisines d'une même famille
+   * sont la même couleur — et la légende cesse de fonctionner, ce qui était
+   * précisément sa raison d'être.
+   *
+   * Le rose côtoie le rouge d'alerte du thème. Ils ne se rencontrent jamais :
+   * l'alerte n'habille que des pastilles de texte, jamais un repère de
+   * catégorie.
+   */
+  excursion: { base: '#be123c', tint: '#ffe4e6' },
+} as const;
+
+export type AccentName = keyof typeof accent;
+
+/**
+ * Durées d'animation, en millisecondes.
+ *
+ * Courtes, et c'est délibéré : au-delà de 250 ms une transition d'interface
+ * cesse d'être perçue comme une réaction et devient une attente. Le retour au
+ * toucher est le plus bref de tous — il doit paraître simultané à l'appui.
+ */
+export const duration = {
+  instant: 120,
+  quick: 180,
+  entrance: 320,
+} as const;
+
 /** Échelle d'espacement de base 4. */
 export const spacing = {
   xs: 4,
