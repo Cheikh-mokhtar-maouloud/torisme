@@ -1,5 +1,6 @@
 import { NavigationContainer, DefaultTheme, type Theme } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -7,6 +8,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ApiRequestError } from './src/api/client';
 import { AuthProvider, useAuth } from './src/auth/auth-context';
+/*
+ * Importé pour son effet de bord : le module initialise i18next au chargement.
+ * Il doit précéder tout composant qui traduit, faute de quoi le premier rendu
+ * afficherait les clés brutes.
+ */
+import { restoreLanguage } from './src/i18n';
 import { RootNavigator } from './src/navigation/root-navigator';
 import { useRealtime } from './src/realtime/use-realtime';
 import { colors } from './src/theme';
@@ -77,11 +84,22 @@ export default function App() {
 function AppContent() {
   const { isRestoring } = useAuth();
 
+  /*
+   * La langue mémorisée est restaurée pendant l'attente de la session, qui a
+   * lieu de toute façon. L'écran de chargement couvre les deux, et rien ne
+   * s'affiche dans la langue du téléphone avant d'être remplacé.
+   */
+  const [isLanguageReady, setLanguageReady] = useState(false);
+
+  useEffect(() => {
+    void restoreLanguage().finally(() => setLanguageReady(true));
+  }, []);
+
   // Connexion temps réel : active uniquement une fois la session restaurée,
   // puisqu'elle a besoin du jeton.
   useRealtime();
 
-  if (isRestoring) {
+  if (isRestoring || !isLanguageReady) {
     return (
       <View style={styles.splash}>
         <ActivityIndicator size="large" color={colors.brand[600]} />

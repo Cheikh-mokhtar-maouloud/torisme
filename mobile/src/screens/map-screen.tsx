@@ -4,6 +4,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 import { DEFAULT_MAP_CENTER, PlaceType } from '@tourism/shared/constants';
 import type { MapMarker } from '@tourism/shared/types';
@@ -48,6 +49,7 @@ const INITIAL_CENTER = {
  * dont l'écrasante majorité hors écran.
  */
 export function MapScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
   /**
@@ -120,7 +122,7 @@ export function MapScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
 
       if (status !== 'granted') {
-        setLocationNotice('Autorisation refusée. La carte reste centrée sur Nouakchott.');
+        setLocationNotice(t('map.permissionDenied'));
         return;
       }
 
@@ -144,7 +146,7 @@ export function MapScreen() {
       );
       mapRef.current?.centerOn(coords.latitude, coords.longitude, 14);
     } catch {
-      setLocationNotice('Position indisponible. Vérifiez que la localisation est activée.');
+      setLocationNotice(t('map.positionUnavailable'));
     } finally {
       setIsLocating(false);
     }
@@ -173,7 +175,7 @@ export function MapScreen() {
       if (!found) {
         setRoute(null);
         mapRef.current?.clearRoute();
-        setLocationNotice('Itinéraire indisponible. Distance à vol d’oiseau affichée.');
+        setLocationNotice(t('map.routeFallback'));
         return;
       }
 
@@ -230,7 +232,7 @@ export function MapScreen() {
                 key={type}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isActive }}
-                accessibilityLabel={`${TYPE_LABELS[type]}, ${count} sur la carte`}
+                accessibilityLabel={t('map.filterLabel', { type: t(TYPE_LABELS[type]), count })}
                 onPress={() => toggleType(type)}
                 style={({ pressed }) => [
                   styles.filter,
@@ -260,7 +262,7 @@ export function MapScreen() {
                   numberOfLines={1}
                   style={[styles.filterLabel, isActive && styles.filterLabelActive]}
                 >
-                  {TYPE_LABELS[type]}
+                  {t(TYPE_LABELS[type])}
                   {count > 0 ? ` ${count}` : ''}
                 </Text>
               </Pressable>
@@ -280,7 +282,7 @@ export function MapScreen() {
         </View>
       ) : markers.length === 0 && bounds ? (
         <View style={[styles.status, { top: insets.top + 64 }]}>
-          <Text style={styles.statusText}>Aucun lieu dans cette zone</Text>
+          <Text style={styles.statusText}>{t('map.noPlacesHere')}</Text>
         </View>
       ) : null}
 
@@ -292,7 +294,7 @@ export function MapScreen() {
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Centrer sur ma position"
+        accessibilityLabel={t('map.myLocation')}
         onPress={() => void centerOnUser()}
         disabled={isLocating}
         style={({ pressed }) => [
@@ -322,7 +324,7 @@ export function MapScreen() {
       {error ? (
         <View style={styles.errorOverlay}>
           <ErrorState
-            message={error instanceof Error ? error.message : 'Carte indisponible.'}
+            message={error instanceof Error ? error.message : t('map.unavailable')}
             onRetry={() => void refetch()}
           />
         </View>

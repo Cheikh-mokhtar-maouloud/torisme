@@ -1,6 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { colors, typography } from '../theme';
 import { Icon, type IconName } from '../components/icon';
@@ -49,15 +50,23 @@ const TAB_ICONS: Record<keyof TabParamList, IconName> = {
   Profile: 'user',
 };
 
+/**
+ * Clés de traduction des onglets.
+ *
+ * Des clés et non des libellés : le navigateur est construit une seule fois, et
+ * y figer du texte le laisserait en français après un changement de langue.
+ */
 const TAB_LABELS: Record<keyof TabParamList, string> = {
-  Home: 'Accueil',
-  Explore: 'Explorer',
-  Map: 'Carte',
-  Bookings: 'Réservations',
-  Profile: 'Profil',
+  Home: 'tabs.home',
+  Explore: 'tabs.explore',
+  Map: 'tabs.map',
+  Bookings: 'tabs.bookings',
+  Profile: 'tabs.profile',
 };
 
 function TabNavigator() {
+  const { t } = useTranslation();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -68,7 +77,7 @@ function TabNavigator() {
         tabBarInactiveTintColor: colors.text.muted,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
-        tabBarLabel: TAB_LABELS[route.name],
+        tabBarLabel: t(TAB_LABELS[route.name]),
         // La couleur vient de `color`, fourni par le navigateur : l'onglet actif
         // et l'inactif partagent ainsi exactement le même dessin, seule la
         // teinte change. C'est ce que l'emoji ne permettait pas.
@@ -85,6 +94,14 @@ function TabNavigator() {
 }
 
 export function RootNavigator() {
+  /*
+   * `useTranslation` et non `i18n.t` directement : le hook réabonne le
+   * composant aux changements de langue. Avec l'appel direct, les titres
+   * resteraient dans la langue en vigueur au moment où le navigateur a été
+   * construit.
+   */
+  const { t } = useTranslation();
+
   return (
     <Stack.Navigator
       screenOptions={{
@@ -103,23 +120,23 @@ export function RootNavigator() {
         component={HotelDetailScreen}
         // Le titre vient du paramètre de route : il s'affiche immédiatement,
         // avant même que la fiche soit chargée.
-        options={({ route }) => ({ title: route.params.hotelName ?? 'Hôtel' })}
+        options={({ route }) => ({ title: route.params.hotelName ?? t('types.hotel') })}
       />
       <Stack.Screen
         name="RoomDetail"
         component={RoomDetailScreen}
-        options={({ route }) => ({ title: route.params.roomName ?? 'Chambre' })}
+        options={({ route }) => ({ title: route.params.roomName ?? t('types.room') })}
       />
       <Stack.Screen
         name="BookingFlow"
         component={BookingFlowScreen}
-        options={{ title: 'Votre séjour' }}
+        options={{ title: t('screens.stay') }}
       />
       <Stack.Screen
         name="BookingConfirmation"
         component={BookingConfirmationScreen}
         options={{
-          title: 'Réservation',
+          title: t('screens.booking'),
           // Pas de retour vers le formulaire : la réservation est créée, y
           // revenir n'aurait aucun sens et risquerait un doublon.
           headerBackVisible: false,
@@ -129,35 +146,35 @@ export function RootNavigator() {
       <Stack.Screen
         name="BookingDetail"
         component={BookingDetailScreen}
-        options={{ title: 'Réservation' }}
+        options={{ title: t('screens.booking') }}
       />
 
       <Stack.Screen
         name="RestaurantDetail"
         component={RestaurantDetailScreen}
-        options={({ route }) => ({ title: route.params.name ?? 'Restaurant' })}
+        options={({ route }) => ({ title: route.params.name ?? t('types.restaurant') })}
       />
       <Stack.Screen
         name="AttractionDetail"
         component={AttractionDetailScreen}
-        options={({ route }) => ({ title: route.params.name ?? 'Attraction' })}
+        options={({ route }) => ({ title: route.params.name ?? t('types.attraction') })}
       />
       <Stack.Screen
         name="ExcursionDetail"
         component={ExcursionDetailScreen}
-        options={({ route }) => ({ title: route.params.title ?? 'Excursion' })}
+        options={({ route }) => ({ title: route.params.title ?? t('types.excursion') })}
       />
 
       <Stack.Screen
         name="ExcursionBooking"
         component={ExcursionBookingScreen}
-        options={{ title: 'Réserver' }}
+        options={{ title: t('screens.book') }}
       />
       <Stack.Screen
         name="ExcursionBookingConfirmation"
         component={ExcursionBookingConfirmationScreen}
         options={{
-          title: 'Réservation',
+          title: t('screens.booking'),
           // Revenir au formulaire après une réservation créée risquerait un doublon.
           headerBackVisible: false,
           gestureEnabled: false,
@@ -166,42 +183,46 @@ export function RootNavigator() {
       <Stack.Screen
         name="ExcursionBookingDetail"
         component={ExcursionBookingDetailScreen}
-        options={{ title: 'Réservation' }}
+        options={{ title: t('screens.booking') }}
       />
 
       <Stack.Screen
         name="Notifications"
         component={NotificationsScreen}
-        options={{ title: 'Notifications' }}
+        options={{ title: t('screens.notifications') }}
       />
       <Stack.Screen
         name="Favorites"
         component={FavoritesScreen}
-        options={{ title: 'Mes favoris' }}
+        options={{ title: t('screens.favorites') }}
       />
       <Stack.Screen
         name="WriteReview"
         component={WriteReviewScreen}
-        options={{ title: 'Donner mon avis' }}
+        options={{ title: t('screens.writeReview') }}
       />
 
       <Stack.Screen
         name="EditProfile"
         component={EditProfileScreen}
-        options={{ title: 'Profil' }}
+        options={{ title: t('screens.editProfile') }}
       />
       <Stack.Screen
         name="ChangePassword"
         component={ChangePasswordScreen}
-        options={{ title: 'Mot de passe' }}
+        options={{ title: t('screens.changePassword') }}
       />
 
       <Stack.Group screenOptions={{ presentation: 'modal' }}>
-        <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Connexion' }} />
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+          options={{ title: t('screens.login') }}
+        />
         <Stack.Screen
           name="Register"
           component={RegisterScreen}
-          options={{ title: 'Créer un compte' }}
+          options={{ title: t('screens.register') }}
         />
       </Stack.Group>
     </Stack.Navigator>

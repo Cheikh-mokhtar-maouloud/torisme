@@ -2,11 +2,13 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '../auth/auth-context';
 import { useUnreadCount } from '../api/use-notifications';
 import { appConfig } from '../config/env';
 import { Button, Card, Divider, EmptyState } from '../components/ui';
+import { LanguagePicker } from '../components/language-picker';
 import { formatDate } from '../lib/format';
 import { colors, spacing, typography } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -14,15 +16,16 @@ import type { RootStackParamList } from '../navigation/types';
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
 export function ProfileScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
   const { user, isAuthenticated, logout } = useAuth();
   const unreadCount = useUnreadCount(isAuthenticated);
 
   const confirmLogout = () => {
-    Alert.alert('Déconnexion', 'Voulez-vous vous déconnecter ?', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Se déconnecter', style: 'destructive', onPress: () => void logout() },
+    Alert.alert(t('profile.logoutTitle'), t('profile.logoutConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('profile.logout'), style: 'destructive', onPress: () => void logout() },
     ]);
   };
 
@@ -30,19 +33,30 @@ export function ProfileScreen() {
     return (
       <View style={[styles.centered, { paddingTop: insets.top }]}>
         <EmptyState
-          title="Votre profil"
-          message="Connectez-vous pour gérer votre compte et vos réservations."
+          title={t('profile.yourProfile')}
+          message={t('profile.loginPrompt')}
           action={
             <View style={styles.authActions}>
-              <Button label="Se connecter" onPress={() => navigation.navigate('Login')} />
+              <Button label={t('profile.signIn')} onPress={() => navigation.navigate('Login')} />
               <Button
-                label="Créer un compte"
+                label={t('screens.register')}
                 variant="secondary"
                 onPress={() => navigation.navigate('Register')}
               />
             </View>
           }
         />
+
+        {/*
+          Le choix de la langue est offert **avant** la connexion.
+          Le placer derrière un compte obligerait quelqu'un qui ne lit pas le
+          français à s'inscrire dans une langue qu'il ne comprend pas pour
+          pouvoir en changer.
+        */}
+        <View style={styles.languageBlock}>
+          <Text style={styles.sectionTitle}>{t('language.title')}</Text>
+          <LanguagePicker />
+        </View>
       </View>
     );
   }
@@ -56,7 +70,7 @@ export function ProfileScreen() {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.heading}>Profil</Text>
+      <Text style={styles.heading}>{t('tabs.profile')}</Text>
 
       <Card style={styles.identityCard}>
         <View style={styles.avatar}>
@@ -69,42 +83,51 @@ export function ProfileScreen() {
       </Card>
 
       <Card style={styles.card}>
-        <Row label="Membre depuis" value={formatDate(user.createdAt)} />
+        <Row label={t('profile.memberSince')} value={formatDate(user.createdAt)} />
         {user.phone ? (
           <>
             <Divider />
-            <Row label="Téléphone" value={user.phone} />
+            <Row label={t('profile.phone')} value={user.phone} />
           </>
         ) : null}
       </Card>
 
-      <Text style={styles.sectionTitle}>Mon compte</Text>
+      <Text style={styles.sectionTitle}>{t('profile.myAccount')}</Text>
       <Card style={styles.card}>
-        <ActionRow label="Modifier le profil" onPress={() => navigation.navigate('EditProfile')} />
+        <ActionRow
+          label={t('profile.editProfile')}
+          onPress={() => navigation.navigate('EditProfile')}
+        />
         <Divider />
         <ActionRow
-          label="Changer le mot de passe"
+          label={t('profile.changePassword')}
           onPress={() => navigation.navigate('ChangePassword')}
         />
       </Card>
 
-      <Text style={styles.sectionTitle}>Mes contenus</Text>
+      <Text style={styles.sectionTitle}>{t('profile.myContent')}</Text>
       <Card style={styles.card}>
         <ActionRow
-          label="Notifications"
+          label={t('screens.notifications')}
           onPress={() => navigation.navigate('Notifications')}
           badge={unreadCount > 0 ? String(unreadCount) : undefined}
         />
         <Divider />
-        <ActionRow label="Mes favoris" onPress={() => navigation.navigate('Favorites')} />
+        <ActionRow
+          label={t('screens.favorites')}
+          onPress={() => navigation.navigate('Favorites')}
+        />
       </Card>
 
       <Button
-        label="Se déconnecter"
+        label={t('profile.logout')}
         variant="secondary"
         onPress={confirmLogout}
         style={styles.logout}
       />
+
+      <Text style={styles.sectionTitle}>{t('language.title')}</Text>
+      <LanguagePicker />
 
       <Text style={styles.version}>Tourism Platform · {appConfig.appEnv}</Text>
     </ScrollView>
@@ -192,6 +215,9 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.surface.border,
   },
+  // Bloc de langue de l'écran déconnecté : il vient sous l'invitation à se
+  // connecter, séparé d'elle pour ne pas se lire comme une de ses actions.
+  languageBlock: { width: '100%', marginTop: spacing.xxl },
   sectionTitle: { ...typography.h3, color: colors.text.primary, marginTop: spacing.md },
   row: {
     flexDirection: 'row',

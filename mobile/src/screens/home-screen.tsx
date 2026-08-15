@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SUPPORTED_COUNTRIES } from '@tourism/shared/constants';
@@ -30,6 +31,7 @@ type Navigation = NativeStackNavigationProp<RootStackParamList>;
  * d'épuiser une catégorie. L'utilisateur bascule vers Explorer pour parcourir.
  */
 export function HomeScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
 
@@ -51,13 +53,13 @@ export function HomeScreen() {
         <Text style={styles.eyebrow}>
           {SUPPORTED_COUNTRIES.map((country) => country.name).join(' · ')}
         </Text>
-        <Text style={styles.heading}>Où partez-vous ?</Text>
+        <Text style={styles.heading}>{t('home.heading')}</Text>
       </FadeInUp>
 
       <FadeInUp delay={40}>
         <PressableScale
           accessibilityRole="search"
-          accessibilityLabel="Rechercher un hôtel, un restaurant ou une attraction"
+          accessibilityLabel={t('home.searchLabel')}
           onPress={() => goToExplore('hotels')}
           // Un champ pleine largeur qui s'enfonce autant qu'une pastille
           // paraîtrait mou : plus la surface est grande, plus l'échelle doit
@@ -67,7 +69,7 @@ export function HomeScreen() {
         >
           <View style={styles.searchInner}>
             <Icon name="search" size={19} color={colors.text.muted} />
-            <Text style={styles.searchPlaceholder}>Rechercher une destination…</Text>
+            <Text style={styles.searchPlaceholder}>{t('home.searchPlaceholder')}</Text>
           </View>
         </PressableScale>
       </FadeInUp>
@@ -82,7 +84,7 @@ export function HomeScreen() {
             style={styles.categorySlot}
           >
             <PressableScale
-              accessibilityLabel={category.label}
+              accessibilityLabel={t(category.label)}
               onPress={() => goToExplore(category.type)}
               contentStyle={styles.category}
             >
@@ -104,7 +106,7 @@ export function HomeScreen() {
                 rangée entière, puisque les quatre partagent la même base.
               */}
               <Text style={styles.categoryLabel} numberOfLines={1} adjustsFontSizeToFit>
-                {category.label}
+                {t(category.label)}
               </Text>
             </PressableScale>
           </FadeInUp>
@@ -112,7 +114,7 @@ export function HomeScreen() {
       </View>
 
       <Section
-        title="Hôtels populaires"
+        title={t('home.popularHotels')}
         // Après les catégories, dont la dernière arrive à 210 ms.
         delay={260}
         onSeeAll={() => goToExplore('hotels')}
@@ -130,7 +132,11 @@ export function HomeScreen() {
             rating={hotel.rating}
             reviewCount={hotel.reviewCount}
             {...(hotel.minPricePerNight
-              ? { footer: `dès ${formatMoney(hotel.minPricePerNight, hotel.currency)}` }
+              ? {
+                  footer: t('common.from', {
+                    price: formatMoney(hotel.minPricePerNight, hotel.currency),
+                  }),
+                }
               : {})}
             onPress={() =>
               navigation.navigate('HotelDetail', { hotelId: hotel.id, hotelName: hotel.name })
@@ -140,7 +146,7 @@ export function HomeScreen() {
       </Section>
 
       <Section
-        title="Attractions à découvrir"
+        title={t('home.attractionsToDiscover')}
         /*
          * Les sections suivantes sont hors de l'écran au chargement : leur
          * décalage ne sert qu'à éviter qu'elles soient déjà posées si
@@ -169,7 +175,7 @@ export function HomeScreen() {
       </Section>
 
       <Section
-        title="Excursions programmées"
+        title={t('home.scheduledExcursions')}
         delay={350}
         onSeeAll={() => goToExplore('excursions')}
         isLoading={excursions.isLoading}
@@ -192,7 +198,7 @@ export function HomeScreen() {
       </Section>
 
       <Section
-        title="Où manger"
+        title={t('home.whereToEat')}
         delay={390}
         onSeeAll={() => goToExplore('restaurants')}
         isLoading={restaurants.isLoading}
@@ -219,11 +225,12 @@ export function HomeScreen() {
   );
 }
 
+/** `label` porte une clé de traduction, résolue au rendu. */
 const CATEGORIES: { type: PlaceTab; label: string; icon: IconName; accent: AccentName }[] = [
-  { type: 'hotels', label: 'Hôtels', icon: 'hotel', accent: 'hotel' },
-  { type: 'attractions', label: 'Sites', icon: 'attraction', accent: 'attraction' },
-  { type: 'excursions', label: 'Excursions', icon: 'excursion', accent: 'excursion' },
-  { type: 'restaurants', label: 'Restaurants', icon: 'restaurant', accent: 'restaurant' },
+  { type: 'hotels', label: 'types.hotels', icon: 'hotel', accent: 'hotel' },
+  { type: 'attractions', label: 'types.attractions', icon: 'attraction', accent: 'attraction' },
+  { type: 'excursions', label: 'types.excursions', icon: 'excursion', accent: 'excursion' },
+  { type: 'restaurants', label: 'types.restaurants', icon: 'restaurant', accent: 'restaurant' },
 ];
 
 /**
@@ -252,22 +259,24 @@ function Section({
   delay: number;
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation();
+
   return (
     <FadeInUp style={styles.section} delay={delay}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{title}</Text>
         <Pressable accessibilityRole="button" onPress={onSeeAll} hitSlop={8}>
-          <Text style={styles.sectionLink}>Tout voir</Text>
+          <Text style={styles.sectionLink}>{t('common.seeAll')}</Text>
         </Pressable>
       </View>
 
       {error ? (
         <ErrorState
-          message={error instanceof Error ? error.message : 'Chargement impossible.'}
+          message={error instanceof Error ? error.message : t('common.errorGeneric')}
           onRetry={onRetry}
         />
       ) : isEmpty ? (
-        <Text style={styles.sectionEmpty}>Rien à afficher pour le moment.</Text>
+        <Text style={styles.sectionEmpty}>{t('common.empty')}</Text>
       ) : (
         <ScrollView
           horizontal

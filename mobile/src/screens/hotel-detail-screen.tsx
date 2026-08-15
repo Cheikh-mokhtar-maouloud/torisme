@@ -253,7 +253,8 @@ const styles = StyleSheet.create({
   roomMeta: { ...typography.caption, color: colors.text.secondary },
   roomPrice: { ...typography.body, fontWeight: '700', color: colors.text.primary, marginTop: 2 },
   roomPriceUnit: { ...typography.caption, color: colors.text.muted, fontWeight: '400' },
-  chevron: { fontSize: 28, color: colors.text.muted, paddingRight: spacing.sm },
+  // `paddingEnd` : voir la note sur le sens d'écriture dans src/i18n/index.ts.
+  chevron: { fontSize: 28, color: colors.text.muted, paddingEnd: spacing.sm },
 
   gap: { marginTop: spacing.sm },
 });

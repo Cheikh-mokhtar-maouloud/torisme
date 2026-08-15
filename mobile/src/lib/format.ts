@@ -1,5 +1,7 @@
 import type { Currency } from '@tourism/shared/constants';
 
+import i18n, { currentLocale } from '../i18n';
+
 /**
  * Formatage localisé.
  *
@@ -8,12 +10,16 @@ import type { Currency } from '@tourism/shared/constants';
  * afficherait « 18000 MRU » là où on attend « 18 000 MRU ».
  *
  * Hermes embarque `Intl` depuis React Native 0.73 : aucun polyfill nécessaire.
+ *
+ * La locale est **lue à chaque appel**, et non figée dans une constante : elle
+ * change avec la langue choisie, et une valeur capturée au chargement du module
+ * afficherait indéfiniment des dates en français dans une interface en arabe.
  */
-const LOCALE = 'fr-FR';
+const LOCALE = () => currentLocale();
 
 export function formatMoney(amount: number | undefined, currency: Currency | string): string {
   if (amount === undefined || amount === null) return '—';
-  return new Intl.NumberFormat(LOCALE, {
+  return new Intl.NumberFormat(LOCALE(), {
     style: 'currency',
     currency,
     maximumFractionDigits: 0,
@@ -22,43 +28,64 @@ export function formatMoney(amount: number | undefined, currency: Currency | str
 
 export function formatDate(value: string | Date | undefined): string {
   if (!value) return '—';
-  return new Intl.DateTimeFormat(LOCALE, { dateStyle: 'medium' }).format(new Date(value));
+  return new Intl.DateTimeFormat(LOCALE(), { dateStyle: 'medium' }).format(new Date(value));
 }
 
 export function formatShortDate(value: string | Date | undefined): string {
   if (!value) return '—';
-  return new Intl.DateTimeFormat(LOCALE, { day: 'numeric', month: 'short' }).format(
+  return new Intl.DateTimeFormat(LOCALE(), { day: 'numeric', month: 'short' }).format(
     new Date(value),
   );
 }
 
 export function formatDateTime(value: string | undefined): string {
   if (!value) return '—';
-  return new Intl.DateTimeFormat(LOCALE, { dateStyle: 'medium', timeStyle: 'short' }).format(
+  return new Intl.DateTimeFormat(LOCALE(), { dateStyle: 'medium', timeStyle: 'short' }).format(
     new Date(value),
   );
 }
 
-/** 960 → « 16 h » ; 4320 → « 3 j ». */
+/**
+ * 960 → « 16 h » ; 4320 → « 3 j ».
+ *
+ * Les abréviations d'unité sont traduites : « h » et « j » ne veulent rien dire
+ * en arabe, et l'anglais écrit « d » là où le français écrit « j ».
+ */
 export function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 60) return i18n.t('units.minutes', { count: minutes });
 
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
-  if (hours < 24) return remainingMinutes ? `${hours} h ${remainingMinutes}` : `${hours} h`;
+
+  if (hours < 24) {
+    return remainingMinutes
+      ? i18n.t('units.hoursMinutes', { count: hours, minutes: remainingMinutes })
+      : i18n.t('units.hours', { count: hours });
+  }
 
   const days = Math.floor(hours / 24);
   const remainingHours = hours % 24;
-  return remainingHours ? `${days} j ${remainingHours} h` : `${days} j`;
+
+  return remainingHours
+    ? i18n.t('units.daysHours', { count: days, hours: remainingHours })
+    : i18n.t('units.days', { count: days });
 }
 
-/** « 2 nuits », « 1 nuit ». Le pluriel français se joue au-delà de 1. */
+/**
+ * « 2 nuits », « 1 nuit », « ليلتان ».
+ *
+ * Le pluriel est délégué à i18next, et non calculé ici par un `s` conditionnel.
+ * Ce raccourci ne vaut que pour le français et l'anglais : l'arabe distingue
+ * **six** formes — zéro, un, deux, quelques, plusieurs, autre — et « ليلتان »,
+ * le duel, n'est ni le singulier ni le pluriel. Aucune règle écrite à la main
+ * ne rendrait cela correctement.
+ */
 export function formatNights(nights: number): string {
-  return `${nights} nuit${nights > 1 ? 's' : ''}`;
+  return i18n.t('units.nights', { count: nights });
 }
 
 export function formatGuests(guests: number): string {
-  return `${guests} voyageur${guests > 1 ? 's' : ''}`;
+  return i18n.t('units.guests', { count: guests });
 }
 
 /** Date au format attendu par l'API (`YYYY-MM-DD`), en jour calendaire UTC. */

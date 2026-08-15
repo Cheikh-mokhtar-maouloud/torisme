@@ -11,6 +11,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { useTranslation } from 'react-i18next';
+
 import { colors, radius, spacing, typography } from '../theme';
 import { Icon } from './icon';
 
@@ -206,13 +208,15 @@ export function ErrorState({
   message: string;
   onRetry?: (() => void) | undefined;
 }) {
+  const { t } = useTranslation();
+
   return (
     <View style={styles.stateContainer}>
-      <Text style={styles.stateTitle}>Une erreur est survenue</Text>
+      <Text style={styles.stateTitle}>{t('common.errorTitle')}</Text>
       <Text style={styles.stateMessage}>{message}</Text>
       {onRetry ? (
         <Button
-          label="Réessayer"
+          label={t('common.retry')}
           onPress={onRetry}
           variant="secondary"
           style={styles.stateAction}

@@ -15,6 +15,8 @@ import {
 } from '../components/cards';
 import { Chip, EmptyState, ErrorState, Input } from '../components/ui';
 import { useAttractions, useExcursions, useHotels, useRestaurants } from '../api/queries';
+import { useTranslation } from 'react-i18next';
+
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { colors, layout, spacing } from '../theme';
 import type { PlaceTab, RootStackParamList, TabParamList } from '../navigation/types';
@@ -22,10 +24,10 @@ import type { PlaceTab, RootStackParamList, TabParamList } from '../navigation/t
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
 const TABS: { type: PlaceTab; label: string }[] = [
-  { type: 'hotels', label: 'Hôtels' },
-  { type: 'attractions', label: 'Sites' },
-  { type: 'excursions', label: 'Excursions' },
-  { type: 'restaurants', label: 'Restaurants' },
+  { type: 'hotels', label: 'types.hotels' },
+  { type: 'attractions', label: 'types.attractions' },
+  { type: 'excursions', label: 'types.excursions' },
+  { type: 'restaurants', label: 'types.restaurants' },
 ];
 
 /**
@@ -36,6 +38,7 @@ const TABS: { type: PlaceTab; label: string }[] = [
  * mobile déjà lent.
  */
 export function ExploreScreen() {
+  const { t } = useTranslation();
   const route = useRoute<RouteProp<TabParamList, 'Explore'>>();
   const insets = useSafeAreaInsets();
 
@@ -66,10 +69,10 @@ export function ExploreScreen() {
         <Input
           value={searchInput}
           onChangeText={setSearchInput}
-          placeholder="Rechercher…"
+          placeholder={t('common.search')}
           returnKeyType="search"
           autoCorrect={false}
-          accessibilityLabel="Rechercher"
+          accessibilityLabel={t('common.search')}
           clearButtonMode="while-editing"
         />
       </View>
@@ -89,7 +92,7 @@ export function ExploreScreen() {
         {TABS.map((tab) => (
           <Chip
             key={tab.type}
-            label={tab.label}
+            label={t(tab.label)}
             selected={activeTab === tab.type}
             onPress={() => setActiveTab(tab.type)}
             fill
@@ -119,6 +122,7 @@ function ExploreList({
   search: string;
   bottomInset: number;
 }) {
+  const { t } = useTranslation();
   const navigation = useNavigation<Navigation>();
   const term = search || undefined;
 
@@ -142,7 +146,7 @@ function ExploreList({
   if (query.error) {
     return (
       <ErrorState
-        message={query.error instanceof Error ? query.error.message : 'Chargement impossible.'}
+        message={query.error instanceof Error ? query.error.message : t('common.errorGeneric')}
         onRetry={() => void query.refetch()}
       />
     );
@@ -167,12 +171,8 @@ function ExploreList({
     onRefresh: () => void query.refetch(),
     ListEmptyComponent: (
       <EmptyState
-        title="Aucun résultat"
-        message={
-          search
-            ? `Rien ne correspond à « ${search} ». Essayez un autre terme.`
-            : 'Aucun contenu publié pour le moment.'
-        }
+        title={t('explore.noResults')}
+        message={search ? t('explore.noMatch', { term: search }) : t('explore.nothingPublished')}
       />
     ) as ReactElement,
   };

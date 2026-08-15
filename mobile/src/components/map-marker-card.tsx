@@ -1,5 +1,6 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 import { PlaceType } from '@tourism/shared/constants';
 import type { MapMarker } from '@tourism/shared/types';
@@ -26,17 +27,17 @@ export const MARKER_COLORS: Record<PlaceType, string> = {
 };
 
 export const TYPE_LABELS: Record<PlaceType, string> = {
-  [PlaceType.HOTEL]: 'Hôtels',
-  [PlaceType.RESTAURANT]: 'Restaurants',
-  [PlaceType.ATTRACTION]: 'Sites',
-  [PlaceType.EXCURSION]: 'Excursions',
+  [PlaceType.HOTEL]: 'types.hotels',
+  [PlaceType.RESTAURANT]: 'types.restaurants',
+  [PlaceType.ATTRACTION]: 'types.attractions',
+  [PlaceType.EXCURSION]: 'types.excursions',
 };
 
 const PRICE_SUFFIX: Record<PlaceType, string> = {
-  [PlaceType.HOTEL]: ' / nuit',
+  [PlaceType.HOTEL]: 'common.perNight',
   [PlaceType.RESTAURANT]: '',
-  [PlaceType.ATTRACTION]: ' / entrée',
-  [PlaceType.EXCURSION]: ' / place',
+  [PlaceType.ATTRACTION]: 'common.perEntry',
+  [PlaceType.EXCURSION]: 'common.perSeat',
 };
 
 /**
@@ -78,6 +79,7 @@ export function MapMarkerCard({
   routeSummary?: string | undefined;
   isRouting?: boolean;
 }) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
   return (
@@ -89,7 +91,7 @@ export function MapMarkerCard({
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Ouvrir la fiche de ${marker.name}`}
+        accessibilityLabel={t('map.openPlace', { name: marker.name })}
         onPress={onPress}
         style={({ pressed }) => [styles.card, pressed && styles.pressed]}
       >
@@ -104,7 +106,7 @@ export function MapMarkerCard({
         <View style={styles.body}>
           <View style={styles.typeRow}>
             <View style={[styles.typeDot, { backgroundColor: MARKER_COLORS[marker.type] }]} />
-            <Text style={styles.typeLabel}>{TYPE_LABELS[marker.type]}</Text>
+            <Text style={styles.typeLabel}>{t(TYPE_LABELS[marker.type])}</Text>
             {marker.distanceMeters !== undefined ? (
               <Text style={styles.distance}>· {formatDistance(marker.distanceMeters)}</Text>
             ) : null}
@@ -122,7 +124,9 @@ export function MapMarkerCard({
             {marker.price ? (
               <Text style={styles.price}>
                 {formatMoney(marker.price, marker.currency ?? 'MRU')}
-                <Text style={styles.priceUnit}>{PRICE_SUFFIX[marker.type]}</Text>
+                <Text style={styles.priceUnit}>
+                  {PRICE_SUFFIX[marker.type] ? t(PRICE_SUFFIX[marker.type]) : ''}
+                </Text>
               </Text>
             ) : null}
           </View>
@@ -138,7 +142,7 @@ export function MapMarkerCard({
       {onRoute || routeSummary ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Itinéraire vers ${marker.name}`}
+          accessibilityLabel={t('map.routeTo', { name: marker.name })}
           onPress={onRoute}
           disabled={!onRoute || isRouting}
           style={({ pressed }) => [styles.routeBar, pressed && styles.pressed]}
@@ -149,14 +153,14 @@ export function MapMarkerCard({
             <Icon name="excursion" size={16} color={colors.brand[700]} />
           )}
           <Text style={styles.routeLabel}>
-            {isRouting ? 'Calcul de l’itinéraire…' : (routeSummary ?? 'Itinéraire')}
+            {isRouting ? t('map.calculating') : (routeSummary ?? t('map.route'))}
           </Text>
         </Pressable>
       ) : null}
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Fermer"
+        accessibilityLabel={t('common.close')}
         onPress={onClose}
         hitSlop={10}
         style={styles.close}
@@ -218,7 +222,13 @@ const styles = StyleSheet.create({
   routeLabel: { ...typography.caption, color: colors.brand[700], fontWeight: '700' },
 
   thumb: { width: 92, height: 92, borderRadius: radius.md, overflow: 'hidden' },
-  body: { flex: 1, gap: 1, paddingVertical: 2, paddingRight: spacing.lg },
+  /*
+   * `paddingEnd` et non `paddingRight` : la marge doit se trouver du côté où le
+   * texte se termine. En arabe, la lecture va de droite à gauche et un
+   * `paddingRight` laisserait le vide du mauvais côté — collé au texte plutôt
+   * qu'au bouton de fermeture qu'il sert à dégager.
+   */
+  body: { flex: 1, gap: 1, paddingVertical: 2, paddingEnd: spacing.lg },
 
   typeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   typeDot: { width: 8, height: 8, borderRadius: 4 },
