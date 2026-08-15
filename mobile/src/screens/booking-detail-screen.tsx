@@ -2,6 +2,7 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 import { BookingStatus } from '@tourism/shared/constants';
 
@@ -25,6 +26,9 @@ export function BookingDetailScreen({ isConfirmation = false }: { isConfirmation
   const route = useRoute<RouteProp<RootStackParamList, 'BookingDetail' | 'BookingConfirmation'>>();
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
+  // Avant tout retour anticipé : l'ordre des hooks doit être identique à
+  // chaque rendu, et les états d'erreur et de chargement sortent plus bas.
+  const { t } = useTranslation();
   const { bookingId } = route.params;
 
   const booking = useBooking(bookingId);
@@ -93,7 +97,7 @@ export function BookingDetailScreen({ isConfirmation = false }: { isConfirmation
 
         <View style={styles.headerRow}>
           <Text style={styles.reference}>{data.reference}</Text>
-          <Badge label={status.label} tone={status.tone} />
+          <Badge label={t(status.label)} tone={status.tone} />
         </View>
 
         {hotel.data ? <Text style={styles.hotelName}>{hotel.data.name}</Text> : null}

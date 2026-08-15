@@ -32,7 +32,9 @@
     "days_one": "{{count}} d",
     "days_other": "{{count}} d",
     "daysHours_one": "{{count}} d {{hours}} h",
-    "daysHours_other": "{{count}} d {{hours}} h"
+    "daysHours_other": "{{count}} d {{hours}} h",
+    "seats_one": "{{count}} seat",
+    "seats_other": "{{count}} seats"
   },
   "tabs": {
     "home": "Home",
@@ -128,5 +130,15 @@
     "memberSince": "Member since",
     "phone": "Phone",
     "changePassword": "Change password"
+  },
+  "bookings": {
+    "title": "My bookings",
+    "empty": "No bookings",
+    "emptyMessage": "Your upcoming stays and excursions will appear here.",
+    "exploreHotels": "Browse hotels",
+    "pending": "Pending",
+    "confirmed": "Confirmed",
+    "cancelled": "Cancelled",
+    "completed": "Completed"
   }
 }

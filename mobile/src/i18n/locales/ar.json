@@ -60,7 +60,13 @@
     "daysHours_two": "{{count}} ي {{hours}} س",
     "daysHours_few": "{{count}} ي {{hours}} س",
     "daysHours_many": "{{count}} ي {{hours}} س",
-    "daysHours_other": "{{count}} ي {{hours}} س"
+    "daysHours_other": "{{count}} ي {{hours}} س",
+    "seats_zero": "بدون مقاعد",
+    "seats_one": "مقعد واحد",
+    "seats_two": "مقعدان",
+    "seats_few": "{{count}} مقاعد",
+    "seats_many": "{{count}} مقعداً",
+    "seats_other": "{{count}} مقعد"
   },
   "tabs": {
     "home": "الرئيسية",
@@ -156,5 +162,15 @@
     "memberSince": "عضو منذ",
     "phone": "الهاتف",
     "changePassword": "تغيير كلمة المرور"
+  },
+  "bookings": {
+    "title": "حجوزاتي",
+    "empty": "لا توجد حجوزات",
+    "emptyMessage": "ستظهر هنا إقاماتك ورحلاتك القادمة.",
+    "exploreHotels": "تصفّح الفنادق",
+    "pending": "قيد الانتظار",
+    "confirmed": "مؤكّد",
+    "cancelled": "ملغى",
+    "completed": "منتهٍ"
   }
 }

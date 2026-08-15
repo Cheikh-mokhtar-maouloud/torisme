@@ -88,6 +88,11 @@ export function formatGuests(guests: number): string {
   return i18n.t('units.guests', { count: guests });
 }
 
+/** « 3 places ». Même délégation du pluriel que pour les nuits et les voyageurs. */
+export function formatSeats(seats: number): string {
+  return i18n.t('units.seats', { count: seats });
+}
+
 /** Date au format attendu par l'API (`YYYY-MM-DD`), en jour calendaire UTC. */
 export function toApiDate(date: Date): string {
   return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
