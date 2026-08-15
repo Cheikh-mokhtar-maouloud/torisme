@@ -208,6 +208,46 @@ async function describeBooking(booking: {
   };
 }
 
+/**
+ * Joint les noms d'hôtel et de chambre à un lot de réservations.
+ *
+ * Deux requêtes pour toute la page, quel que soit le nombre de lignes : les
+ * identifiants sont rassemblés puis interrogés en une fois. Résoudre chaque
+ * réservation séparément produirait le schéma « N+1 » — cinquante réservations
+ * feraient cent-une requêtes, et la lenteur ne se verrait qu'en production, sur
+ * les comptes les plus fournis.
+ *
+ * Le `Map` est indispensable : sans lui, retrouver le nom d'un hôtel pour
+ * chaque réservation imposerait de parcourir la liste des hôtels à chaque fois.
+ */
+async function attachNames(bookings: BookingDto[]): Promise<BookingDto[]> {
+  if (bookings.length === 0) return bookings;
+
+  const hotelIds = [...new Set(bookings.map((booking) => String(booking.hotelId)))];
+  const roomIds = [...new Set(bookings.map((booking) => String(booking.roomId)))];
+
+  const [hotels, rooms] = await Promise.all([
+    // Projection réduite au nom : rapatrier les fiches entières transporterait
+    // descriptions et images pour n'en afficher qu'un titre.
+    Hotel.find({ _id: { $in: hotelIds } }, { name: 1 }).lean(),
+    Room.find({ _id: { $in: roomIds } }, { name: 1 }).lean(),
+  ]);
+
+  const hotelNames = new Map(hotels.map((hotel) => [String(hotel._id), hotel.name]));
+  const roomNames = new Map(rooms.map((room) => [String(room._id), room.name]));
+
+  return bookings.map((booking) => ({
+    ...booking,
+    /*
+     * `?? undefined` et non une valeur de repli comme « Établissement » : un
+     * nom générique laisserait croire que la donnée existe. L'absence remonte
+     * telle quelle, et l'affichage retombe alors sur la référence.
+     */
+    hotelName: hotelNames.get(String(booking.hotelId)) ?? undefined,
+    roomName: roomNames.get(String(booking.roomId)) ?? undefined,
+  }));
+}
+
 export async function listBookings(
   query: BookingListQuery,
   actor: { userId: string; role: UserRole },
@@ -231,12 +271,14 @@ export async function listBookings(
     filter.reference = { $regex: escapeRegex(query.search), $options: 'i' };
   }
 
-  return paginateQuery(
+  const page = await paginateQuery(
     Booking,
     filter,
     { page: query.page, limit: query.limit, sort: { createdAt: -1 } },
     (doc) => serializeDocument<BookingDto>(doc),
   );
+
+  return { ...page, items: await attachNames(page.items) };
 }
 
 export async function getBookingById(
@@ -254,7 +296,8 @@ export async function getBookingById(
     throw HttpError.notFound('Réservation introuvable');
   }
 
-  return serializeDocument<BookingDto>(booking);
+  const [withNames] = await attachNames([serializeDocument<BookingDto>(booking)]);
+  return withNames!;
 }
 
 export async function cancelBooking(

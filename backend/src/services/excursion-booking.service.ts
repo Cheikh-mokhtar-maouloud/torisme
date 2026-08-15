@@ -160,6 +160,39 @@ async function explainFailure(excursionId: string, now: Date): Promise<HttpError
   );
 }
 
+/**
+ * Joint le titre, la destination et la date de l'excursion à un lot de
+ * réservations. Même principe et mêmes raisons que dans `booking.service.ts` :
+ * une requête pour toute la page plutôt qu'une par ligne.
+ *
+ * La date de départ est jointe elle aussi : une réservation d'excursion n'en
+ * porte pas, alors que c'est l'information que le voyageur cherche en premier
+ * dans sa liste.
+ */
+async function attachExcursions(bookings: ExcursionBookingDto[]): Promise<ExcursionBookingDto[]> {
+  if (bookings.length === 0) return bookings;
+
+  const ids = [...new Set(bookings.map((booking) => String(booking.excursionId)))];
+
+  const excursions = await Excursion.find(
+    { _id: { $in: ids } },
+    { title: 1, destination: 1, startsAt: 1 },
+  ).lean();
+
+  const byId = new Map(excursions.map((excursion) => [String(excursion._id), excursion]));
+
+  return bookings.map((booking) => {
+    const excursion = byId.get(String(booking.excursionId));
+
+    return {
+      ...booking,
+      excursionTitle: excursion?.title ?? undefined,
+      destination: excursion?.destination ?? undefined,
+      startsAt: excursion?.startsAt ? new Date(excursion.startsAt).toISOString() : undefined,
+    };
+  });
+}
+
 export async function listExcursionBookings(
   query: ExcursionBookingListQuery,
   actor: { userId: string; role: UserRole },
@@ -176,12 +209,14 @@ export async function listExcursionBookings(
     filter.reference = { $regex: escapeRegex(query.search), $options: 'i' };
   }
 
-  return paginateQuery(
+  const page = await paginateQuery(
     ExcursionBooking,
     filter,
     { page: query.page, limit: query.limit, sort: { createdAt: -1 } },
     (doc) => serializeDocument<ExcursionBookingDto>(doc),
   );
+
+  return { ...page, items: await attachExcursions(page.items) };
 }
 
 export async function getExcursionBookingById(
@@ -197,7 +232,8 @@ export async function getExcursionBookingById(
     throw HttpError.notFound('Réservation introuvable');
   }
 
-  return serializeDocument<ExcursionBookingDto>(booking);
+  const [withExcursion] = await attachExcursions([serializeDocument<ExcursionBookingDto>(booking)]);
+  return withExcursion!;
 }
 
 /**

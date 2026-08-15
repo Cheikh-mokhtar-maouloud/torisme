@@ -138,6 +138,18 @@ export interface Booking extends Timestamps {
   status: BookingStatus;
   cancelledAt?: IsoDate;
   cancellationReason?: string;
+  /**
+   * Noms de l'hôtel et de la chambre, joints par le serveur.
+   *
+   * Une réservation ne porte que des identifiants. Sans ces deux champs, une
+   * liste de réservations ne peut afficher que des références — « TP-9LAXWA »
+   * au lieu d'« Auberge du Banc d'Arguin » —, ou bien doit lancer une requête
+   * par ligne, ce qui multiplie les allers-retours sur un réseau mobile.
+   *
+   * Facultatifs : une fiche dont l'hôtel a été supprimé reste lisible.
+   */
+  hotelName?: string;
+  roomName?: string;
 }
 
 export interface ExcursionBooking extends Timestamps {
@@ -145,6 +157,10 @@ export interface ExcursionBooking extends Timestamps {
   reference: string;
   userId: Id;
   excursionId: Id;
+  /** Titre, destination et date de l'excursion, joints par le serveur. Voir Booking. */
+  excursionTitle?: string;
+  destination?: string;
+  startsAt?: IsoDate;
   seats: number;
   unitPrice: number;
   totalPrice: number;
