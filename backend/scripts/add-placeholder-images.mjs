@@ -115,6 +115,7 @@ async function run() {
     ['Hôtels', '/api/hotels'],
     ['Restaurants', '/api/restaurants'],
     ['Sites', '/api/attractions'],
+    ['Excursions', '/api/excursions'],
   ]) {
     const all = await listAll(token, path);
     let touched = 0;
