@@ -1,9 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import type { Attraction, Excursion, Hotel, Restaurant } from '@tourism/shared/types';
 
 import { colors, layout, radius, spacing, typography } from '../theme';
 import { formatMoney, formatShortDate } from '../lib/format';
+import { PressableScale } from './motion';
 import { PlaceImage } from './place-image';
 import { Badge, Card, Rating, Skeleton } from './ui';
 
@@ -18,11 +19,11 @@ import { Badge, Card, Rating, Skeleton } from './ui';
 
 export function HotelCard({ hotel, onPress }: { hotel: Hotel; onPress: () => void }) {
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={`${hotel.name}, ${hotel.address.city}`}
       onPress={onPress}
-      style={({ pressed }) => [pressed && styles.pressed]}
+      scaleTo={0.98}
     >
       <Card style={styles.wideCard}>
         <View style={styles.wideImage}>
@@ -52,7 +53,7 @@ export function HotelCard({ hotel, onPress }: { hotel: Hotel; onPress: () => voi
           </View>
         </View>
       </Card>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -74,11 +75,12 @@ export function CompactCard({
   onPress: () => void;
 }) {
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={name}
       onPress={onPress}
-      style={({ pressed }) => [styles.compactCard, pressed && styles.pressed]}
+      style={styles.compactCard}
+      scaleTo={0.98}
     >
       <View style={styles.compactImage}>
         <PlaceImage images={images} name={name} style={styles.photo} />
@@ -96,7 +98,7 @@ export function CompactCard({
           <Rating value={rating} count={reviewCount} />
         ) : null}
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -152,11 +154,12 @@ export function ExcursionCard({
   const isNearlyFull = excursion.availableSeats > 0 && excursion.availableSeats <= 3;
 
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={excursion.title}
       onPress={onPress}
-      style={({ pressed }) => [styles.compactCard, pressed && styles.pressed]}
+      style={styles.compactCard}
+      scaleTo={0.98}
     >
       <View style={styles.compactImage}>
         <PlaceImage images={excursion.images} name={excursion.title} style={styles.photo} />
@@ -177,7 +180,7 @@ export function ExcursionCard({
           ) : null}
         </View>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -208,8 +211,6 @@ export function CompactCardSkeleton() {
 }
 
 const styles = StyleSheet.create({
-  pressed: { opacity: 0.85 },
-
   /*
    * Le rayon est porté par l'image elle-même, et pas seulement par son
    * conteneur. Sous Android, `overflow: hidden` ne découpe pas de façon fiable
