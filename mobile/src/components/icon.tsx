@@ -61,18 +61,25 @@ export const ICONS = {
 /**
  * Icônes empruntées à Ionicons, faute d'équivalent chez Feather.
  *
- * L'hôtel en est le seul cas. Feather n'a pas de lit : le dessin employé
- * jusqu'ici était une **clé**, qui ne se comprend qu'une fois qu'on sait
- * qu'elle désigne une chambre — un symbole qui demande à être expliqué a déjà
- * échoué. Le lit, lui, se lit sans légende.
+ * Deux cas, chacun pour un manque précis :
+ *
+ * - **le lit.** Feather n'en a pas, d'où la clé employée jusqu'ici — qui ne se
+ *   comprend qu'une fois qu'on sait qu'elle désigne une chambre. Un symbole qui
+ *   demande à être expliqué a déjà échoué.
+ * - **le cœur plein.** Feather ne dessine que des contours, or un favori a deux
+ *   états et c'est le remplissage qui les distingue d'un coup d'œil. Un cœur
+ *   vide et un cœur vide légèrement plus foncé ne se distinguent pas.
  *
  * Le mélange de familles reste à éviter, pour la raison dite plus haut : les
  * épaisseurs de trait diffèrent et l'ensemble paraît assemblé par accident. La
- * variante « outline » d'Ionicons est celle qui s'en approche le plus. Ce doit
- * rester l'exception, non le début d'un second jeu.
+ * variante « outline » d'Ionicons est celle qui s'en approche le plus. Ces
+ * emprunts doivent rester des exceptions justifiées, non le début d'un second
+ * jeu.
  */
 const IONICONS = {
   hotel: 'bed-outline',
+  heartOutline: 'heart-outline',
+  heartFilled: 'heart',
 } as const;
 
 export type IconName = keyof typeof ICONS | keyof typeof IONICONS;

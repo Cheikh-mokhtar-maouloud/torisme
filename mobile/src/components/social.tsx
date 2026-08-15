@@ -10,6 +10,8 @@ import { useAuth } from '../auth/auth-context';
 import { formatDate } from '../lib/format';
 import { colors, radius, spacing, typography } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
+import { Icon } from './icon';
+import { PressableScale } from './motion';
 import { Button, Card, Skeleton } from './ui';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -41,19 +43,28 @@ export function FavoriteButton({
   };
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: isFavorite }}
+    <PressableScale
       accessibilityLabel={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
       onPress={handlePress}
       disabled={toggle.isPending}
-      hitSlop={10}
-      style={({ pressed }) => [styles.favoriteButton, pressed && styles.pressed]}
+      // Plus marqué qu'ailleurs : le favori est le seul bouton dont l'appui ne
+      // change pas d'écran. Sans une réaction franche, rien ne confirme que le
+      // geste a été pris.
+      scaleTo={0.88}
+      contentStyle={styles.favoriteButton}
     >
-      <Text style={[styles.favoriteIcon, isFavorite && styles.favoriteIconActive]}>
-        {isFavorite ? '♥' : '♡'}
-      </Text>
-    </Pressable>
+      {/*
+        Icône vectorielle, et non les caractères « ♥ » et « ♡ ».
+        Ceux-ci dépendent de la police du système : Android les remplace par
+        son emoji couleur, ignore la teinte demandée — le cœur restait rouge
+        même éteint — et leur gabarit ne se centre pas dans le bouton.
+      */}
+      <Icon
+        name={isFavorite ? 'heartFilled' : 'heartOutline'}
+        size={22}
+        color={isFavorite ? colors.status.danger : colors.text.secondary}
+      />
+    </PressableScale>
   );
 }
 
@@ -152,8 +163,6 @@ function ReviewItem({ review }: { review: Review }) {
 }
 
 const styles = StyleSheet.create({
-  pressed: { opacity: 0.6 },
-
   favoriteButton: {
     width: 40,
     height: 40,
@@ -164,8 +173,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.surface.border,
   },
-  favoriteIcon: { fontSize: 20, color: colors.text.muted, lineHeight: 24 },
-  favoriteIconActive: { color: colors.status.danger },
 
   section: { marginTop: spacing.xl },
   sectionHeader: { marginBottom: spacing.sm },
