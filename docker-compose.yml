@@ -29,12 +29,26 @@ services:
     # seuls les services du réseau interne la voient. Publier 27017 « pour
     # déboguer » est la première cause d'exposition de bases MongoDB.
     networks: [internal]
+    # Le délai doit couvrir le démarrage de `mongosh`, pas la latence de la base.
+    #
+    # `mongosh` est une application Node : sur une machine chargée, son seul
+    # lancement demande une dizaine de secondes — mesuré à 12,7 s ici, pour un
+    # `ping` qui répond ensuite instantanément. Avec 5 s, MongoDB se déclarait
+    # en panne alors qu'il servait normalement les requêtes.
+    #
+    # Ce n'est pas une gêne cosmétique : un orchestrateur redémarre ce qu'il
+    # croit mort. La sonde provoquait donc des redémarrages sous charge,
+    # précisément au moment où l'on en veut le moins.
+    #
+    # Un délai généreux n'aveugle pas pour autant : une base réellement arrêtée
+    # fait échouer `mongosh` en quelques millisecondes — connexion refusée — et
+    # non au bout du délai. Celui-ci ne joue que pour les démarrages lents.
     healthcheck:
       test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
-      interval: 20s
-      timeout: 5s
+      interval: 30s
+      timeout: 20s
       retries: 5
-      start_period: 30s
+      start_period: 60s
 
   redis:
     image: redis:7-alpine
