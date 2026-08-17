@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import type { Attraction, Excursion, Hotel, Restaurant } from '@tourism/shared/types';
 
@@ -18,6 +19,8 @@ import { Badge, Card, Rating, Skeleton } from './ui';
  */
 
 export function HotelCard({ hotel, onPress }: { hotel: Hotel; onPress: () => void }) {
+  const { t } = useTranslation();
+
   return (
     <PressableScale
       accessibilityRole="button"
@@ -47,7 +50,7 @@ export function HotelCard({ hotel, onPress }: { hotel: Hotel; onPress: () => voi
             {hotel.minPricePerNight ? (
               <Text style={styles.price}>
                 {formatMoney(hotel.minPricePerNight, hotel.currency)}
-                <Text style={styles.priceUnit}> / nuit</Text>
+                <Text style={styles.priceUnit}>{t('common.perNight')}</Text>
               </Text>
             ) : null}
           </View>

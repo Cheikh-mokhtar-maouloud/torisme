@@ -175,8 +175,12 @@ export function Chip({
 }
 
 export function Rating({ value, count }: { value: number; count: number }) {
+  // Le hook est appelé avant la sortie anticipée : son ordre doit être le même
+  // à chaque rendu, que la note existe ou non.
+  const { t } = useTranslation();
+
   if (count === 0) {
-    return <Text style={styles.ratingEmpty}>Pas encore d’avis</Text>;
+    return <Text style={styles.ratingEmpty}>{t('common.noReviews')}</Text>;
   }
 
   return (

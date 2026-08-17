@@ -1,6 +1,7 @@
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Room } from '@tourism/shared/types';
@@ -149,10 +150,12 @@ export function HotelDetailScreen() {
 }
 
 function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
+  const { t } = useTranslation();
+
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${room.name}, ${formatMoney(room.pricePerNight, room.currency)} par nuit`}
+      accessibilityLabel={`${room.name}, ${formatMoney(room.pricePerNight, room.currency)}${t('common.perNight')}`}
       onPress={onPress}
       style={({ pressed }) => [styles.roomRow, pressed && styles.pressed]}
     >
@@ -169,7 +172,7 @@ function RoomRow({ room, onPress }: { room: Room; onPress: () => void }) {
         </Text>
         <Text style={styles.roomPrice}>
           {formatMoney(room.pricePerNight, room.currency)}
-          <Text style={styles.roomPriceUnit}> / nuit</Text>
+          <Text style={styles.roomPriceUnit}>{t('common.perNight')}</Text>
         </Text>
       </View>
 
