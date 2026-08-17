@@ -75,3 +75,7 @@ docker/nginx/certs/*
 
 # Surcharge Docker locale (ports de developpement).
 docker-compose.override.yml
+
+# Cache local de la reponse Overpass, pour ne pas resolliciter un service
+# public gratuit a chaque execution de fix-place-names.
+backend/scripts/.osm-cache.json
