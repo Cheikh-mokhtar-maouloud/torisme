@@ -177,6 +177,7 @@
   "auth": {
     "or": "أو",
     "continueWithGoogle": "المتابعة عبر Google",
-    "googleFailed": "فشل تسجيل الدخول عبر Google. حاول مجدداً."
+    "googleFailed": "فشل تسجيل الدخول عبر Google. حاول مجدداً.",
+    "googleNotConfigured": "تسجيل الدخول عبر Google غير مفعّل: لم يُضبط EXPO_PUBLIC_GOOGLE_CLIENT_ID."
   }
 }

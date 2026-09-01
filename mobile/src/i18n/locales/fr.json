@@ -145,6 +145,7 @@
   "auth": {
     "or": "ou",
     "continueWithGoogle": "Continuer avec Google",
-    "googleFailed": "La connexion Google a échoué. Réessayez."
+    "googleFailed": "La connexion Google a échoué. Réessayez.",
+    "googleNotConfigured": "Connexion Google inactive : EXPO_PUBLIC_GOOGLE_CLIENT_ID n’est pas renseigné."
   }
 }

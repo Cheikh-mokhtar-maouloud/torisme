@@ -21,11 +21,16 @@ WebBrowser.maybeCompleteAuthSession();
 /**
  * Bouton « Continuer avec Google ».
  *
- * ─── Pourquoi il peut ne rien afficher ──────────────────────────────────────
+ * ─── Ce qu'il fait sans identifiant configuré ───────────────────────────────
  *
- * Sans identifiant client configuré, le composant ne rend rien. Un bouton
- * présent mais voué à l'échec est pire que son absence : l'utilisateur
- * l'essaie, échoue, et conclut que l'application est cassée.
+ * En **production**, il ne s'affiche pas : un bouton voué à l'échec est pire
+ * que son absence — l'utilisateur l'essaie, échoue, et conclut que
+ * l'application est cassée.
+ *
+ * En **développement**, il s'affiche désactivé, avec la variable manquante
+ * nommée sous lui. La version précédente disparaissait sans rien dire, ce qui
+ * laissait croire que la fonctionnalité n'avait pas été écrite alors qu'elle
+ * l'était entièrement. Un composant invisible ne se débogue pas.
  *
  * ─── Ce qui traverse le réseau ──────────────────────────────────────────────
  *
@@ -91,7 +96,10 @@ export function GoogleSignInButton({ onError }: { onError?: (message: string) =>
     }
   };
 
-  if (!clientId) return null;
+  // En production, pas de bouton sans identifiant. Voir la note d'en-tête.
+  if (!clientId && appConfig.isProduction) return null;
+
+  const isConfigured = Boolean(clientId);
 
   return (
     <View style={styles.wrapper}>
@@ -104,7 +112,7 @@ export function GoogleSignInButton({ onError }: { onError?: (message: string) =>
       <PressableScale
         accessibilityLabel={t('auth.continueWithGoogle')}
         onPress={() => void handlePress()}
-        disabled={!request || isBusy}
+        disabled={!isConfigured || !request || isBusy}
         scaleTo={0.98}
         contentStyle={styles.button}
       >
@@ -117,11 +125,22 @@ export function GoogleSignInButton({ onError }: { onError?: (message: string) =>
               est une marque déposée dont l'usage est encadré par une charte, et
               l'embarquer sans s'y conformer expose à une demande de retrait.
             */}
-            <Text style={styles.mark}>G</Text>
-            <Text style={styles.label}>{t('auth.continueWithGoogle')}</Text>
+            <Text style={[styles.mark, !isConfigured && styles.disabled]}>G</Text>
+            <Text style={[styles.label, !isConfigured && styles.disabled]}>
+              {t('auth.continueWithGoogle')}
+            </Text>
           </>
         )}
       </PressableScale>
+
+      {isConfigured ? null : (
+        /*
+          Le nom exact de la variable, et non « non configuré ».
+          Un message vague oblige à fouiller le code pour savoir quoi faire ;
+          celui-ci se lit et s'applique.
+        */
+        <Text style={styles.hint}>{t('auth.googleNotConfigured')}</Text>
+      )}
     </View>
   );
 }
@@ -149,5 +168,7 @@ const styles = StyleSheet.create({
     borderColor: colors.surface.border,
   },
   mark: { ...typography.h3, color: colors.brand[700], fontWeight: '700' },
+  disabled: { color: colors.text.muted },
+  hint: { ...typography.caption, color: colors.text.muted, textAlign: 'center' },
   label: { ...typography.bodyStrong, color: colors.text.primary },
 });

@@ -145,6 +145,7 @@
   "auth": {
     "or": "or",
     "continueWithGoogle": "Continue with Google",
-    "googleFailed": "Google sign-in failed. Try again."
+    "googleFailed": "Google sign-in failed. Try again.",
+    "googleNotConfigured": "Google sign-in inactive: EXPO_PUBLIC_GOOGLE_CLIENT_ID is not set."
   }
 }
