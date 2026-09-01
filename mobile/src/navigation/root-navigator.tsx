@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { useAuth } from '../auth/auth-context';
 import { colors, typography } from '../theme';
 import { Icon, type IconName } from '../components/icon';
 import { ExploreScreen } from '../screens/explore-screen';
@@ -66,6 +67,7 @@ const TAB_LABELS: Record<keyof TabParamList, string> = {
 
 function TabNavigator() {
   const { t } = useTranslation();
+  const { isAuthenticated } = useAuth();
 
   return (
     <Tab.Navigator
@@ -90,7 +92,17 @@ function TabNavigator() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Explore" component={ExploreScreen} />
       <Tab.Screen name="Map" component={MapScreen} />
-      <Tab.Screen name="Bookings" component={BookingsScreen} />
+      {/*
+        « Réservations » n'apparaît qu'une fois connecté.
+        Sans session, cet onglet ne peut afficher qu'une invitation à se
+        connecter : il occupe un cinquième de la barre pour ne rien faire, et
+        chaque appui est une impasse. Le proposer ne « fait pas connaître la
+        fonctionnalité » — cela promet une page qui n'existe pas encore.
+
+        « Profil » reste, lui : c'est de là qu'on se connecte. Le masquer
+        supprimerait le seul chemin vers la connexion.
+      */}
+      {isAuthenticated ? <Tab.Screen name="Bookings" component={BookingsScreen} /> : null}
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
