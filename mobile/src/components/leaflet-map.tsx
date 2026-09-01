@@ -69,7 +69,7 @@ function buildHtml(center: { latitude: number; longitude: number; zoom: number }
        dit pas — sur une carte dense, distinguer quatre teintes demande de
        comparer, reconnaître une tasse ou un lit est immédiat. */
     .pin {
-      width: 28px; height: 28px;
+      width: 20px; height: 20px;
       border-radius: 50% 50% 50% 0;
       /* Pivotée de 45° : le coin non arrondi devient la pointe basse, qui
          désigne le lieu exact. Un disque, lui, ne montre que son centre. */
@@ -78,9 +78,11 @@ function buildHtml(center: { latitude: number; longitude: number; zoom: number }
       box-shadow: 0 2px 5px rgba(0,0,0,0.35);
       display: flex; align-items: center; justify-content: center;
     }
-    /* L'icône est remise d'aplomb : sans cette contre-rotation elle
-       apparaîtrait penchée avec son repère. */
-    .pin svg { transform: rotate(45deg); }
+    /* L'icone est remise d'aplomb : sans cette contre-rotation elle
+       apparaitrait penchee avec son repere.
+       Sa taille est donnee en pourcentage du repere : changer la taille des
+       marqueurs ne demande alors de toucher qu'une seule valeur. */
+    .pin svg { transform: rotate(45deg); width: 56%; height: 56%; }
     /* Point de position : cercle plein bleu, cerné de blanc, comme le repère
        standard des applications de cartographie. La convention est assez
        établie pour qu'on la suive plutôt que d'inventer un symbole. */
@@ -150,11 +152,12 @@ function buildHtml(center: { latitude: number; longitude: number; zoom: number }
 
     function glyphFor(type) {
       var paths = GLYPHS[type] || '';
-      // Trait plus epais qu'a l'ecran d'accueil : a quinze pixels sur fond
-      // colore, deux points disparaissent.
+      // Trait epais, et sans dimension fixe : la taille vient du CSS, en
+      // pourcentage du repere. A onze pixels sur fond colore, un trait fin
+      // disparait — d'ou 2.8 dans un carre de 24.
       // (Pas d'accent grave ici : ce bloc vit dans un litteral de gabarit.)
-      return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" ' +
-        'stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" ' +
+      return '<svg viewBox="0 0 24 24" fill="none" ' +
+        'stroke="#ffffff" stroke-width="2.8" stroke-linecap="round" ' +
         'stroke-linejoin="round">' + paths + '</svg>';
     }
 
@@ -166,10 +169,11 @@ function buildHtml(center: { latitude: number; longitude: number; zoom: number }
         var icon = L.divIcon({
           className: '',
           html: '<div class="pin" style="background:' + m.color + '">' + glyphFor(m.type) + '</div>',
-          iconSize: [28, 28],
+          iconSize: [20, 20],
           // La pointe est en bas au centre : le repère doit désigner le lieu,
-          // non le survoler.
-          iconAnchor: [14, 28]
+          // non le survoler. Ces valeurs suivent la taille fixée en CSS —
+          // les désaccorder décale le repère de son lieu.
+          iconAnchor: [10, 20]
         });
         L.marker([m.latitude, m.longitude], { icon: icon })
           .addTo(layer)
