@@ -63,13 +63,24 @@ function buildHtml(center: { latitude: number; longitude: number; zoom: number }
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     html, body, #map { height: 100%; margin: 0; padding: 0; background: #f4f4f5; }
-    /* La pastille du marqueur reprend exactement les couleurs de type de
-       l'application : la légende des filtres reste vraie. */
+    /* Repère en goutte, portant l'icône de sa catégorie.
+       La couleur reprend celle des filtres et de l'accueil : la légende reste
+       vraie sans avoir à être lue. L'icône ajoute ce que la couleur seule ne
+       dit pas — sur une carte dense, distinguer quatre teintes demande de
+       comparer, reconnaître une tasse ou un lit est immédiat. */
     .pin {
-      width: 18px; height: 18px; border-radius: 50%;
-      border: 3px solid #ffffff;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+      width: 28px; height: 28px;
+      border-radius: 50% 50% 50% 0;
+      /* Pivotée de 45° : le coin non arrondi devient la pointe basse, qui
+         désigne le lieu exact. Un disque, lui, ne montre que son centre. */
+      transform: rotate(-45deg);
+      border: 2px solid #ffffff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.35);
+      display: flex; align-items: center; justify-content: center;
     }
+    /* L'icône est remise d'aplomb : sans cette contre-rotation elle
+       apparaîtrait penchée avec son repère. */
+    .pin svg { transform: rotate(45deg); }
     /* Point de position : cercle plein bleu, cerné de blanc, comme le repère
        standard des applications de cartographie. La convention est assez
        établie pour qu'on la suive plutôt que d'inventer un symbole. */
@@ -118,6 +129,35 @@ function buildHtml(center: { latitude: number; longitude: number; zoom: number }
     map.on('moveend', reportBounds);
     map.on('click', function () { send({ type: 'mapPress' }); });
 
+    /*
+     * Silhouettes des icônes, en SVG et non en police d'icônes.
+     *
+     * Une police devrait être chargée depuis le réseau : sur une connexion
+     * lente, les repères resteraient vides ou porteraient un carré de
+     * remplacement pendant plusieurs secondes. Les tracés ci-dessous sont dans
+     * la page, donc dessinés au premier rendu.
+     *
+     * Ils reprennent les icônes des catégories de l'accueil — tasse, appareil
+     * photo, boussole, lit — pour qu'un repère de la carte et une pastille de
+     * l'accueil se reconnaissent l'un l'autre.
+     */
+    var GLYPHS = {
+      HOTEL: '<path d="M3 7v10"/><path d="M3 12h18v5"/><path d="M7 12V9.5h4a2 2 0 0 1 2 2V12"/>',
+      RESTAURANT: '<path d="M18 8h1a3 3 0 0 1 0 6h-1"/><path d="M3 8h15v7a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8z"/><path d="M7 2v3"/><path d="M11 2v3"/><path d="M15 2v3"/>',
+      ATTRACTION: '<path d="M22 18a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l1.6-2.4h6.8L17 7h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.6"/>',
+      EXCURSION: '<circle cx="12" cy="12" r="9"/><path d="M16 8l-2 6-6 2 2-6z"/>'
+    };
+
+    function glyphFor(type) {
+      var paths = GLYPHS[type] || '';
+      // Trait plus epais qu'a l'ecran d'accueil : a quinze pixels sur fond
+      // colore, deux points disparaissent.
+      // (Pas d'accent grave ici : ce bloc vit dans un litteral de gabarit.)
+      return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" ' +
+        'stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" ' +
+        'stroke-linejoin="round">' + paths + '</svg>';
+    }
+
     // Remplace tous les marqueurs. Appelé depuis React Native à chaque
     // changement de données.
     window.setMarkers = function (markers) {
@@ -125,9 +165,11 @@ function buildHtml(center: { latitude: number; longitude: number; zoom: number }
       markers.forEach(function (m) {
         var icon = L.divIcon({
           className: '',
-          html: '<div class="pin" style="background:' + m.color + '"></div>',
-          iconSize: [18, 18],
-          iconAnchor: [9, 9]
+          html: '<div class="pin" style="background:' + m.color + '">' + glyphFor(m.type) + '</div>',
+          iconSize: [28, 28],
+          // La pointe est en bas au centre : le repère doit désigner le lieu,
+          // non le survoler.
+          iconAnchor: [14, 28]
         });
         L.marker([m.latitude, m.longitude], { icon: icon })
           .addTo(layer)
