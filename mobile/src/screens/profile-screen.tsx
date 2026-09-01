@@ -10,7 +10,7 @@ import { appConfig } from '../config/env';
 import { Button, Card, Divider, EmptyState } from '../components/ui';
 import { LanguagePicker } from '../components/language-picker';
 import { formatDate } from '../lib/format';
-import { colors, spacing, typography } from '../theme';
+import { colors, layout, spacing, typography } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -185,7 +185,17 @@ function initials(fullName: string): string {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface.subtle },
-  centered: { flex: 1, justifyContent: 'center', backgroundColor: colors.surface.subtle },
+  /*
+   * La marge latérale manquait : le bloc de langue, en largeur pleine, venait
+   * toucher les deux bords — le titre se retrouvait collé au cadre, et la
+   * rangée des trois langues débordait de l'écran.
+   */
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: layout.screenPadding,
+    backgroundColor: colors.surface.subtle,
+  },
   content: { paddingHorizontal: spacing.lg, gap: spacing.md },
 
   heading: { ...typography.h1, color: colors.text.primary, marginBottom: spacing.xs },
@@ -217,7 +227,10 @@ const styles = StyleSheet.create({
   },
   // Bloc de langue de l'écran déconnecté : il vient sous l'invitation à se
   // connecter, séparé d'elle pour ne pas se lire comme une de ses actions.
-  languageBlock: { width: '100%', marginTop: spacing.xxl },
+  // `alignSelf: 'stretch'` plutôt que `width: '100%'` : dans un conteneur
+  // centré, la largeur pleine se mesure sur le parent sans tenir compte de sa
+  // marge, et l'élément ressort donc de chaque côté.
+  languageBlock: { alignSelf: 'stretch', marginTop: spacing.xxl },
   sectionTitle: { ...typography.h3, color: colors.text.primary, marginTop: spacing.md },
   row: {
     flexDirection: 'row',

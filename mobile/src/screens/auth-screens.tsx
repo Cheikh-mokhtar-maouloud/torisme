@@ -15,6 +15,7 @@ import { loginSchema, registerSchema } from '@tourism/shared/validation';
 
 import { ApiRequestError } from '../api/client';
 import { useAuth } from '../auth/auth-context';
+import { GoogleSignInButton } from '../components/google-sign-in';
 import { Button, Field, Input } from '../components/ui';
 import { colors, spacing, typography } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -106,6 +107,8 @@ export function LoginScreen() {
       </Field>
 
       <Button label="Se connecter" onPress={() => void handleSubmit()} loading={isSubmitting} />
+
+      <GoogleSignInButton onError={setFormError} />
     </AuthLayout>
   );
 }

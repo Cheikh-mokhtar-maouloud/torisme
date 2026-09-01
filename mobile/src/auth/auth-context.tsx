@@ -25,6 +25,8 @@ interface AuthContextValue {
   isRestoring: boolean;
   isAuthenticated: boolean;
   login: (input: LoginInput) => Promise<void>;
+  /** Échange un jeton d'identité Google contre une session de l'application. */
+  loginWithGoogle: (idToken: string) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -96,6 +98,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [persist],
   );
 
+  const loginWithGoogle = useCallback(
+    async (idToken: string) => {
+      /*
+       * Le jeton est transmis au serveur, qui seul le vérifie.
+       *
+       * L'application ne le décode pas et n'en tire aucune conclusion : un
+       * client peut être modifié, et croire sur parole ce qu'il affirme
+       * reviendrait à laisser n'importe qui ouvrir n'importe quelle session.
+       */
+      await persist(await api.post<AuthResult>('/api/auth/google', { idToken }));
+    },
+    [persist],
+  );
+
   const register = useCallback(
     async (input: RegisterInput) => {
       await persist(await api.post<AuthResult>('/api/auth/register', input));
@@ -129,11 +145,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isRestoring,
       isAuthenticated: user !== null,
       login,
+      loginWithGoogle,
       register,
       logout,
       refreshUser,
     }),
-    [user, isRestoring, login, register, logout, refreshUser],
+    [user, isRestoring, login, loginWithGoogle, register, logout, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

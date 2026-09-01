@@ -141,5 +141,10 @@
     "confirmed": "Confirmed",
     "cancelled": "Cancelled",
     "completed": "Completed"
+  },
+  "auth": {
+    "or": "or",
+    "continueWithGoogle": "Continue with Google",
+    "googleFailed": "Google sign-in failed. Try again."
   }
 }

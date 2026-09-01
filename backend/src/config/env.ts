@@ -43,6 +43,22 @@ const envSchema = z.object({
    * rotation était censée retirer du service.
    */
   JWT_SECRET_PREVIOUS: optionalSecret(),
+
+  /**
+   * Identifiant client Google, servant d'**audience** attendue des jetons.
+   *
+   * Facultatif : sans lui la connexion Google est simplement indisponible, et
+   * l'application n'en propose pas le bouton. C'est préférable à un bouton qui
+   * échouerait — et cela permet de faire tourner le serveur sans compte Google.
+   *
+   * Ce n'est pas un secret : il voyage dans chaque requête d'authentification
+   * et figure dans l'application mobile. Le secret client, lui, n'est pas
+   * nécessaire ici : on ne fait que **vérifier** un jeton, jamais en demander un.
+   */
+  GOOGLE_CLIENT_ID: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.string().min(10).optional(),
+  ),
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('30d'),
 

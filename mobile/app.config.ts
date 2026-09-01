@@ -49,6 +49,13 @@ const config: ExpoConfig = {
      * demandé depuis le code.
      */
     'expo-localization',
+    /*
+     * Requis par `expo-auth-session` : il ouvre la page de connexion Google
+     * dans un onglet du navigateur système plutôt que dans une vue web de
+     * l'application. Google refuse les vues web embarquées depuis 2021 — elles
+     * permettaient à l'application hôte de lire le mot de passe saisi.
+     */
+    'expo-web-browser',
     [
       'expo-location',
       {
@@ -62,6 +69,14 @@ const config: ExpoConfig = {
   ],
   extra: {
     apiUrl: process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000',
+    /*
+     * Identifiant client Google, vide par défaut.
+     *
+     * Sans lui, l'application n'affiche pas le bouton « Continuer avec
+     * Google » : mieux vaut son absence qu'un bouton qui échoue. Ce n'est pas
+     * un secret — il figure dans toute application publiée.
+     */
+    googleClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? '',
     appEnv: process.env.EXPO_PUBLIC_APP_ENV ?? 'development',
     realtimeUrl: process.env.EXPO_PUBLIC_REALTIME_URL ?? 'http://localhost:4100',
   },

@@ -16,6 +16,13 @@ const extraSchema = z.object({
    * sans mise à jour instantanée — le temps réel est un confort, pas un socle.
    */
   realtimeUrl: z.union([z.url(), z.literal('')]).default(''),
+  /**
+   * Identifiant client Google. Vide, le bouton n'est pas proposé.
+   *
+   * Vide plutôt qu'absent : une chaîne vide se lit comme « configuré à rien »,
+   * et distingue une installation sans Google d'une erreur de configuration.
+   */
+  googleClientId: z.string().default(''),
 });
 
 const parsed = extraSchema.safeParse(Constants.expoConfig?.extra ?? {});
@@ -31,6 +38,7 @@ if (!parsed.success) {
 export const appConfig = {
   apiUrl: parsed.data.apiUrl.replace(/\/$/, ''),
   realtimeUrl: parsed.data.realtimeUrl.replace(/\/$/, ''),
+  googleClientId: parsed.data.googleClientId.trim(),
   appEnv: parsed.data.appEnv,
   isProduction: parsed.data.appEnv === 'production',
 } as const;

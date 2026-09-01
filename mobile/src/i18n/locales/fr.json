@@ -141,5 +141,10 @@
     "confirmed": "Confirmée",
     "cancelled": "Annulée",
     "completed": "Terminée"
+  },
+  "auth": {
+    "or": "ou",
+    "continueWithGoogle": "Continuer avec Google",
+    "googleFailed": "La connexion Google a échoué. Réessayez."
   }
 }

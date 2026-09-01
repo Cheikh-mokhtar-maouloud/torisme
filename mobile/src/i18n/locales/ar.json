@@ -173,5 +173,10 @@
     "confirmed": "مؤكّد",
     "cancelled": "ملغى",
     "completed": "منتهٍ"
+  },
+  "auth": {
+    "or": "أو",
+    "continueWithGoogle": "المتابعة عبر Google",
+    "googleFailed": "فشل تسجيل الدخول عبر Google. حاول مجدداً."
   }
 }

@@ -41,3 +41,15 @@ export const changePasswordSchema = z.object({
   newPassword: passwordSchema,
 });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+/**
+ * Connexion par Google.
+ *
+ * Un seul champ : le jeton d'identité. Ni adresse ni nom — ils sont dans le
+ * jeton, signés par Google. Les accepter séparément reviendrait à croire le
+ * client sur des données qu'il pourrait choisir.
+ */
+export const googleAuthSchema = z.object({
+  idToken: z.string().min(20),
+});
+export type GoogleAuthInput = z.infer<typeof googleAuthSchema>;

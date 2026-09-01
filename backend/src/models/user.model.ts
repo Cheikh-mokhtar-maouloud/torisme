@@ -20,7 +20,35 @@ const userSchema = new Schema(
      * il faut le demander explicitement (`.select('+passwordHash')`), ce qui rend
      * impossible une fuite par oubli dans une réponse d'API.
      */
-    passwordHash: { type: String, required: true, select: false },
+    /*
+     * Obligatoire **sauf** pour un compte créé par un fournisseur externe.
+     *
+     * Un utilisateur venu de Google n'a jamais choisi de mot de passe chez
+     * nous ; lui en générer un au hasard donnerait un compte dont personne ne
+     * connaît la clé, et que le formulaire « changer le mot de passe »
+     * refuserait, faute d'ancien mot de passe à confirmer.
+     *
+     * La fonction est évaluée sur le document : le champ n'est exigé que si
+     * aucune identité externe n'est rattachée.
+     */
+    passwordHash: {
+      type: String,
+      required(this: { googleId?: string }) {
+        return !this.googleId;
+      },
+      select: false,
+    },
+    /**
+     * Identifiant Google (« sub » du jeton), s'il y en a un.
+     *
+     * `sparse` est indispensable avec `unique` : sans lui, tous les comptes
+     * sans identité Google porteraient la même valeur nulle et le second
+     * enregistrement serait rejeté comme doublon.
+     *
+     * Le « sub » et non l'adresse électronique : Google garantit sa stabilité,
+     * alors qu'une adresse peut changer de main.
+     */
+    googleId: { type: String, unique: true, sparse: true, select: false },
     phone: { type: String, trim: true },
     avatarUrl: { type: String },
     role: {
@@ -62,6 +90,7 @@ const userSchema = new Schema(
         // Ceinture et bretelles : même si une requête demande le hash,
         // il ne peut pas ressortir par la sérialisation JSON.
         delete ret.passwordHash;
+        delete ret.googleId;
         return ret;
       },
     },

@@ -117,6 +117,21 @@ export async function login(input: LoginInput, userAgent?: string): Promise<Auth
     );
   }
 
+  /*
+   * Compte créé par Google : il n'a pas de mot de passe.
+   *
+   * Le message nomme la voie à suivre plutôt que de répéter « email ou mot de
+   * passe incorrect » : ici l'adresse est bonne, et laisser l'utilisateur
+   * ressayer son mot de passe indéfiniment ne l'aiderait pas. Cela ne révèle
+   * rien d'exploitable — il faut déjà connaître une adresse inscrite, et
+   * l'attaquant apprendrait de toute façon en tentant le bouton Google.
+   */
+  if (!found.passwordHash) {
+    throw HttpError.unauthorized(
+      'Ce compte utilise la connexion Google. Utilisez le bouton « Continuer avec Google ».',
+    );
+  }
+
   const passwordMatches = await verifyPassword(input.password, found.passwordHash);
 
   if (!passwordMatches) {
@@ -147,6 +162,111 @@ export async function login(input: LoginInput, userAgent?: string): Promise<Auth
   return {
     user: serializeDocument<UserDto>(found),
     token: await signAccessToken({ sub: userId, role: found.role as UserRole, email: found.email }),
+    refreshToken: (await issueRefreshToken(userId, userAgent)).token,
+  };
+}
+
+/**
+ * Connexion par Google.
+ *
+ * ─── Ce que le serveur vérifie, et pourquoi ─────────────────────────────────
+ *
+ * L'application envoie le **jeton d'identité** émis par Google, non une adresse
+ * électronique. La différence est tout : une adresse est déclarative, un jeton
+ * est signé. Accepter « connecte-moi comme untel@gmail.com » sur parole
+ * laisserait n'importe qui prendre le compte de n'importe qui.
+ *
+ * `verifyIdToken` contrôle la signature contre les clés publiques de Google, la
+ * date d'expiration, et surtout l'**audience** : le jeton doit avoir été émis
+ * pour notre application. Sans ce dernier contrôle, un jeton obtenu par une
+ * autre application Google — n'importe laquelle — serait accepté ici.
+ *
+ * ─── Rattachement d'un compte existant ──────────────────────────────────────
+ *
+ * Une adresse déjà inscrite par mot de passe se voit rattacher l'identité
+ * Google plutôt que refuser la connexion. L'inverse obligerait quelqu'un ayant
+ * créé son compte au clavier à ne plus jamais pouvoir utiliser le bouton
+ * Google, sans comprendre pourquoi.
+ *
+ * Google n'est cru que si l'adresse est marquée vérifiée par lui : sans cette
+ * condition, un compte Google créé avec l'adresse d'autrui — Google n'exige pas
+ * toujours la vérification — permettrait de s'emparer du compte correspondant.
+ */
+export async function loginWithGoogle(idToken: string, userAgent?: string): Promise<AuthResult> {
+  const googleClientId = env().GOOGLE_CLIENT_ID;
+
+  if (!googleClientId) {
+    throw HttpError.validation('La connexion Google n’est pas configurée sur ce serveur.');
+  }
+
+  const { OAuth2Client } = await import('google-auth-library');
+  const client = new OAuth2Client(googleClientId);
+
+  let payload;
+
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: googleClientId,
+    });
+    payload = ticket.getPayload();
+  } catch {
+    // Le détail de l'échec n'est pas remonté : signature invalide, jeton
+    // expiré ou audience étrangère sont tous des tentatives à traiter de la
+    // même façon, et les distinguer renseignerait un attaquant.
+    securityEvent(SecurityEvent.LOGIN_FAILED, { detail: 'jeton Google refusé' });
+    throw HttpError.unauthorized('Connexion Google refusée');
+  }
+
+  if (!payload?.sub || !payload.email) {
+    throw HttpError.unauthorized('Connexion Google refusée');
+  }
+
+  const email = payload.email.toLowerCase();
+
+  const existing = await User.findOne({ $or: [{ googleId: payload.sub }, { email }] })
+    .select('+googleId')
+    .lean();
+
+  if (existing) {
+    if (!existing.isActive) throw HttpError.forbidden('Compte désactivé');
+
+    // Rattachement : voir la note d'en-tête sur `email_verified`.
+    if (!existing.googleId) {
+      if (!payload.email_verified) {
+        throw HttpError.unauthorized(
+          'Cette adresse est déjà utilisée. Connectez-vous avec votre mot de passe.',
+        );
+      }
+      await User.updateOne({ _id: existing._id }, { $set: { googleId: payload.sub } });
+    }
+
+    const userId = String(existing._id);
+
+    return {
+      user: serializeDocument<UserDto>(existing),
+      token: await signAccessToken({
+        sub: userId,
+        role: existing.role as UserRole,
+        email: existing.email,
+      }),
+      refreshToken: (await issueRefreshToken(userId, userAgent)).token,
+    };
+  }
+
+  const created = await User.create({
+    fullName: payload.name?.trim() || email.split('@')[0],
+    email,
+    googleId: payload.sub,
+    ...(payload.picture ? { avatarUrl: payload.picture } : {}),
+    role: UserRole.USER,
+  });
+
+  const userId = String(created._id);
+
+  return {
+    user: serializeDocument<UserDto>(created.toObject()),
+    token: await signAccessToken({ sub: userId, role: UserRole.USER, email }),
     refreshToken: (await issueRefreshToken(userId, userAgent)).token,
   };
 }
@@ -218,6 +338,15 @@ export async function updateProfile(userId: string, input: UpdateProfileInput): 
 export async function changePassword(userId: string, input: ChangePasswordInput): Promise<void> {
   const found = await User.findById(userId).select('+passwordHash').lean();
   if (!found) throw HttpError.notFound('Utilisateur introuvable');
+
+  // Même raison que dans `login` : un compte Google n'a pas d'ancien mot de
+  // passe à confirmer. Il lui faudrait passer par « mot de passe oublié », qui
+  // en définit un premier sans en exiger un précédent.
+  if (!found.passwordHash) {
+    throw HttpError.validation(
+      'Ce compte utilise la connexion Google. Définissez un mot de passe via « mot de passe oublié ».',
+    );
+  }
 
   const matches = await verifyPassword(input.currentPassword, found.passwordHash);
   if (!matches) {
