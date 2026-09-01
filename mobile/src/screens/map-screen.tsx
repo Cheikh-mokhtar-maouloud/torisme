@@ -15,6 +15,7 @@ import {
   formatDistance,
   MapMarkerCard,
   MARKER_COLORS,
+  MARKER_TINTS,
   TYPE_LABELS,
 } from '../components/map-marker-card';
 import { fetchRoute, formatDuration, type Route } from '../api/routing';
@@ -236,7 +237,7 @@ export function MapScreen() {
                 onPress={() => toggleType(type)}
                 style={({ pressed }) => [
                   styles.filter,
-                  isActive && styles.filterActive,
+                  isActive && { backgroundColor: MARKER_TINTS[type] },
                   pressed && styles.pressed,
                 ]}
               >
@@ -260,7 +261,13 @@ export function MapScreen() {
                   // ne plus tenir, il faut le voir immédiatement plutôt que de
                   // le découvrir coupé sur l'appareil d'un utilisateur.
                   numberOfLines={1}
-                  style={[styles.filterLabel, isActive && styles.filterLabelActive]}
+                  style={[
+                    styles.filterLabel,
+                    // Le libellé actif prend la couleur pleine de sa catégorie :
+                    // sur le fond teinté, elle porte assez de contraste, et la
+                    // pastille et le texte disent alors la même chose.
+                    isActive && { color: MARKER_COLORS[type] },
+                  ]}
                 >
                   {t(TYPE_LABELS[type])}
                   {count > 0 ? ` ${count}` : ''}
@@ -421,12 +428,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface.background,
     ...shadow.soft,
   },
-  filterActive: { backgroundColor: colors.neutral[900] },
   filterDot: { width: 6, height: 6, borderRadius: radius.full },
   // 11 points : la taille des libellés de la barre d'onglets, donc déjà
   // employée ailleurs dans l'application et lisible sur un petit écran.
   filterLabel: { fontSize: 11, lineHeight: 14, color: colors.text.secondary, fontWeight: '700' },
-  filterLabelActive: { color: colors.text.inverse },
 
   status: {
     position: 'absolute',

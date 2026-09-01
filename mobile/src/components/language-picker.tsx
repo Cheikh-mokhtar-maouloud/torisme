@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     backgroundColor: colors.neutral[100],
   },
-  optionActive: { backgroundColor: colors.neutral[900] },
+  optionActive: { backgroundColor: colors.brand[600] },
   label: { ...typography.caption, color: colors.text.secondary, fontWeight: '600' },
   labelActive: { color: colors.text.inverse },
 });

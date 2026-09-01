@@ -26,6 +26,21 @@ export const MARKER_COLORS: Record<PlaceType, string> = {
   [PlaceType.EXCURSION]: accent.excursion.base,
 };
 
+/**
+ * Fonds clairs correspondants, pour les surfaces plutôt que les points.
+ *
+ * Un filtre actif rempli de la couleur vive donnerait quatre aplats alignés en
+ * haut de l'écran, qui attireraient le regard bien plus que la carte qu'ils
+ * servent à filtrer. La teinte claire colore sans crier — et remplace le noir,
+ * qui ne disait rien de la catégorie.
+ */
+export const MARKER_TINTS: Record<PlaceType, string> = {
+  [PlaceType.HOTEL]: accent.hotel.tint,
+  [PlaceType.RESTAURANT]: accent.restaurant.tint,
+  [PlaceType.ATTRACTION]: accent.attraction.tint,
+  [PlaceType.EXCURSION]: accent.excursion.tint,
+};
+
 export const TYPE_LABELS: Record<PlaceType, string> = {
   [PlaceType.HOTEL]: 'types.hotels',
   [PlaceType.RESTAURANT]: 'types.restaurants',

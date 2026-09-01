@@ -73,7 +73,10 @@ function TabNavigator() {
         // Les écrans gèrent eux-mêmes leur zone sûre haute : un en-tête
         // supplémentaire volerait de la hauteur sur des listes déjà denses.
         headerShown: false,
-        tabBarActiveTintColor: colors.text.primary,
+        // Teal de marque plutôt que noir : l'onglet actif se distingue par la
+        // couleur, non par un simple surcroît de contraste que l'œil doit
+        // comparer d'un onglet à l'autre.
+        tabBarActiveTintColor: colors.brand[600],
         tabBarInactiveTintColor: colors.text.muted,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,

@@ -129,10 +129,21 @@ export function Chip({
   selected = false,
   onPress,
   fill = false,
+  color,
 }: {
   label: string;
   selected?: boolean;
   onPress?: () => void;
+  /**
+   * Couleur de la pastille sélectionnée.
+   *
+   * Le teal de marque par défaut. Les rangées qui portent des catégories y
+   * passent la teinte de la catégorie : la sélection dit alors *ce qui* est
+   * sélectionné, pas seulement qu'il y a une sélection. Le noir employé
+   * jusqu'ici ne disait que la seconde chose, et le répétait sur tous les
+   * écrans.
+   */
+  color?: string;
   /**
    * Partage la largeur disponible avec les autres pastilles de la rangée.
    *
@@ -144,7 +155,14 @@ export function Chip({
   fill?: boolean;
 }) {
   const content = (
-    <View style={[styles.chip, fill && styles.chipFill, selected && styles.chipSelected]}>
+    <View
+      style={[
+        styles.chip,
+        fill && styles.chipFill,
+        selected && styles.chipSelected,
+        selected && color ? { backgroundColor: color } : null,
+      ]}
+    >
       <Text
         // Un libellé plus long que sa pastille doit être abrégé, jamais replié :
         // une deuxième ligne déformerait la rangée entière.
@@ -360,7 +378,7 @@ const styles = StyleSheet.create({
   // Sélection en gris très foncé plutôt qu'en couleur de marque : le teal reste
   // réservé aux actions, et le contraste noir/blanc se lit mieux qu'un teal sur
   // blanc à cette taille de texte.
-  chipSelected: { backgroundColor: colors.neutral[900] },
+  chipSelected: { backgroundColor: colors.brand[600] },
   /*
    * En mode étiré, le rembourrage horizontal se réduit : c'est la largeur
    * partagée qui donne sa taille à la pastille, et un rembourrage généreux
