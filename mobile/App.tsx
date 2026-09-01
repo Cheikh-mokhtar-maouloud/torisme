@@ -2,7 +2,7 @@ import { NavigationContainer, DefaultTheme, type Theme } from '@react-navigation
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -13,7 +13,7 @@ import { AuthProvider, useAuth } from './src/auth/auth-context';
  * Il doit précéder tout composant qui traduit, faute de quoi le premier rendu
  * afficherait les clés brutes.
  */
-import { restoreLanguage } from './src/i18n';
+import i18n, { restoreLanguage } from './src/i18n';
 import { RootNavigator } from './src/navigation/root-navigator';
 import { useRealtime } from './src/realtime/use-realtime';
 import { colors } from './src/theme';
@@ -92,7 +92,24 @@ function AppContent() {
   const [isLanguageReady, setLanguageReady] = useState(false);
 
   useEffect(() => {
-    void restoreLanguage().finally(() => setLanguageReady(true));
+    void restoreLanguage()
+      .then(({ directionMismatch }) => {
+        /*
+         * Le sens d'écriture est resté sur celui d'une langue précédente.
+         *
+         * `restoreLanguage` vient de le corriger, mais le moteur de mise en page
+         * l'a déjà lu : l'écran affiché reste disposé à l'envers jusqu'au
+         * prochain lancement. Le dire vaut mieux que de laisser l'utilisateur
+         * devant une interface française alignée à droite, sans explication ni
+         * moyen d'agir.
+         */
+        if (!directionMismatch) return;
+
+        Alert.alert(i18n.t('language.restartTitle'), i18n.t('language.directionMismatch'), [
+          { text: i18n.t('language.understood') },
+        ]);
+      })
+      .finally(() => setLanguageReady(true));
   }, []);
 
   // Connexion temps réel : active uniquement une fois la session restaurée,

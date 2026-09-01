@@ -110,7 +110,8 @@
     "title": "Language",
     "restartTitle": "Restart required",
     "restartMessage": "Arabic is written right to left. Close and reopen the app so the layout follows.",
-    "understood": "Got it"
+    "understood": "Got it",
+    "directionMismatch": "The layout is still mirrored, left over from a previous language choice. Close and reopen the app to set it right."
   },
   "explore": {
     "noResults": "No results",

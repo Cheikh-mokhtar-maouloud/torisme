@@ -39,22 +39,20 @@ export { LANGUAGES, FALLBACK_LANGUAGE, type Language } from './languages';
  * un défaut d'implémentation qu'on pourrait contourner ; c'est ainsi que
  * fonctionne le moteur.
  *
- * ─── Ce qui ne se vérifie pas dans Expo Go ──────────────────────────────────
+ * ─── Ce que `forceRTL` retourne réellement ─────────────────────────────────
  *
- * `forceRTL` agit sur l'**application hôte**. Dans Expo Go, cette application
- * est Expo Go lui-même, qui impose sa propre direction : le texte s'affiche
- * bien en arabe et s'aligne à droite — la bidirectionnalité du moteur de texte
- * s'en charge —, mais la mise en page ne se retourne pas. Les titres restent à
- * gauche, les chevrons pointent toujours dans le même sens.
+ * Le retournement fonctionne, y compris dans Expo Go : titres à droite,
+ * chevrons inversés, ordre des onglets retourné. Une note antérieure affirmait
+ * ici le contraire — elle avait été écrite sans avoir été vérifiée à l'écran.
  *
- * Ce n'est pas un défaut du code : le retournement s'obtient dans une
- * compilation native — `npx expo run:android`, ou une construction EAS —, où
- * l'application est enfin la sienne. C'est aussi la raison d'être du greffon
- * `expo-localization` déclaré dans `app.config.ts`, qui n'a d'effet que là.
+ * Le réglage est retenu par l'**application hôte**, donc par Expo Go pendant le
+ * développement. Il survit à la fermeture de l'application, au redémarrage du
+ * téléphone et au remplacement du serveur de développement — c'est ce qui rend
+ * possible le désaccord traité dans `restoreLanguage`.
  *
- * À vérifier lors de cette première compilation native : les marges nommées
- * `marginLeft` / `marginRight` deviennent `marginStart` / `marginEnd`, et tout
- * style qui aurait codé un côté en dur se retrouvera du mauvais côté.
+ * À surveiller : les marges nommées `marginLeft` / `marginRight` ne se
+ * retournent pas ; il faut `marginStart` / `marginEnd`. Le dépôt n'en contient
+ * plus, mais toute nouvelle en introduirait une du mauvais côté en arabe.
  */
 
 /**
@@ -143,14 +141,35 @@ export function currentLanguage(): Language {
  * le choix de l'utilisateur s'il en a fait un. Le faire après le premier rendu
  * produirait un écran brièvement dans la mauvaise langue.
  *
- * Le sens d'écriture, lui, est déjà fixé par le système au lancement — c'est
- * `forceRTL` du choix **précédent** qui l'a établi. Rien à faire ici : y
- * toucher n'aurait aucun effet avant le prochain démarrage.
+ * ─── Le sens d'écriture peut se désaccorder de la langue ────────────────────
+ *
+ * `forceRTL` est retenu par l'application hôte et survit à tout : fermeture,
+ * redémarrage du téléphone, réinstallation du serveur de développement. La
+ * langue, elle, est relue depuis le magasin local.
+ *
+ * Ces deux mémoires peuvent donc diverger — et l'ont fait : après un passage
+ * par l'arabe, l'interface est revenue au français **disposée de droite à
+ * gauche**, titres à droite et onglets inversés. `setLanguage` ne corrigeait
+ * rien, puisqu'il ne compare le sens qu'au moment d'un changement.
+ *
+ * La réconciliation se fait donc ici, au démarrage. Elle ne peut pas prendre
+ * effet immédiatement — le moteur de mise en page a déjà lu le sens — mais elle
+ * garantit que le lancement suivant soit correct. Un décalage se résorbe ainsi
+ * de lui-même en une relance, au lieu de persister indéfiniment.
  */
-export async function restoreLanguage(): Promise<void> {
+export async function restoreLanguage(): Promise<{ directionMismatch: boolean }> {
   const stored = await readStoredLanguage();
 
   if (stored !== null && stored !== i18n.language) {
     await i18n.changeLanguage(stored);
   }
+
+  const expectedRtl = LANGUAGES[currentLanguage()].rtl;
+
+  if (I18nManager.isRTL === expectedRtl) return { directionMismatch: false };
+
+  I18nManager.allowRTL(expectedRtl);
+  I18nManager.forceRTL(expectedRtl);
+
+  return { directionMismatch: true };
 }

@@ -110,7 +110,8 @@
     "title": "Langue",
     "restartTitle": "Redémarrage nécessaire",
     "restartMessage": "L’arabe s’écrit de droite à gauche. Fermez puis rouvrez l’application pour que la mise en page suive.",
-    "understood": "J’ai compris"
+    "understood": "J’ai compris",
+    "directionMismatch": "La disposition est restée orientée dans l’autre sens, héritée d’un choix de langue précédent. Fermez puis rouvrez l’application pour la remettre d’aplomb."
   },
   "explore": {
     "noResults": "Aucun résultat",
