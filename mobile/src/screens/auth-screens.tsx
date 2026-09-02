@@ -114,6 +114,22 @@ export function LoginScreen() {
         loading={isSubmitting}
       />
 
+      {/*
+        Le point d'entrée manquait : le serveur savait réinitialiser un mot de
+        passe, mais rien dans l'application n'y menait.
+
+        Placé sous le bouton de connexion, et non en pied d'écran : c'est
+        l'échec d'une tentative qui fait chercher ce lien, donc c'est là que le
+        regard revient.
+      */}
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => navigation.navigate('ForgotPassword')}
+        hitSlop={8}
+      >
+        <Text style={styles.forgotLink}>{t('reset.forgotLink')}</Text>
+      </Pressable>
+
       <GoogleSignInButton onError={setFormError} />
     </AuthLayout>
   );
