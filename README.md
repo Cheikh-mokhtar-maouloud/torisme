@@ -19,6 +19,61 @@ Marché initial : la **Mauritanie**, avec une architecture multi-pays.
 Le mobile et le dashboard consomment **la même API**. Aucune logique métier n'est
 dupliquée côté client.
 
+## Aperçu
+
+### Application mobile
+
+Application touriste : recherche, carte, réservation. Interface en français,
+arabe et anglais.
+
+| Accueil | Explorer |
+| --- | --- |
+| ![Accueil](docs/screenshots/mobile-accueil.png) | ![Explorer](docs/screenshots/mobile-explorer.png) |
+
+| Carte | Profil |
+| --- | --- |
+| ![Carte](docs/screenshots/mobile-carte.png) | ![Profil](docs/screenshots/mobile-profil.png) |
+
+La carte est rendue par **Leaflet sur les tuiles OpenStreetMap** : aucune clé
+d'API, aucun compte de facturation. Chaque repère porte l'icône de sa catégorie
+et la couleur qui lui correspond sur tous les écrans — un point orange et un
+disque orange désignent la même chose.
+
+Le rond gris en bas à droite des captures est la bulle de développement d'Expo
+Go ; elle n'existe pas dans une application compilée.
+
+### Tableau de bord
+
+Administration des contenus et des réservations, réservée aux comptes
+administrateurs.
+
+| Connexion | Vue d'ensemble |
+| --- | --- |
+| ![Connexion](docs/screenshots/dashboard-login.png) | ![Tableau de bord](docs/screenshots/dashboard-accueil.png) |
+
+| Hôtels | Réservations |
+| --- | --- |
+| ![Hôtels](docs/screenshots/dashboard-hotels.png) | ![Réservations](docs/screenshots/dashboard-reservations.png) |
+
+| Restaurants | Excursions |
+| --- | --- |
+| ![Restaurants](docs/screenshots/dashboard-restaurants.png) | ![Excursions](docs/screenshots/dashboard-excursions.png) |
+
+Les captures se régénèrent avec :
+
+```bash
+node scripts/capture-dashboard.mjs      # tableau de bord, via le Chrome installé
+adb exec-out screencap -p > docs/screenshots/mobile-accueil.png
+```
+
+### Sur les données affichées
+
+Les lieux proviennent d'**OpenStreetMap** (licence ODbL) : noms, adresses et
+coordonnées sont réels. En revanche les **photographies sont des illustrations
+génériques** et les **tarifs sont inventés** — aucun établissement ne les a
+communiqués. Ils conviennent à une démonstration ; ils doivent être remplacés
+par les données des établissements avant toute ouverture au public.
+
 ## Démarrage rapide
 
 ```bash

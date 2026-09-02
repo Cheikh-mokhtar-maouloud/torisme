@@ -47,6 +47,24 @@ function readEnvFile(path) {
   }
 }
 
+/*
+ * ─── Lire la bonne base, pas celle qui traîne ───────────────────────────────
+ *
+ * Ce script a d'abord tiré sa configuration de `backend/.env.local` — le
+ * fichier du développement local. Il a donc corrigé une base vide en annonçant
+ * un succès, pendant que la base réellement servie par l'application gardait
+ * quatorze comptes bloqués. Aucun message d'erreur : la reprise avait
+ * « réussi ».
+ *
+ * L'ordre est désormais inverse : la variable d'environnement d'abord, le
+ * fichier local seulement en dernier recours. Et le nom de la base est
+ * réaffiché avant toute écriture, avec le nombre de comptes trouvés — une base
+ * vide ou inattendue se voit alors immédiatement.
+ *
+ * Pour la base servie par Docker, dont le port n'est pas publié :
+ *   docker compose exec -T mongo mongosh …
+ * ou en passant MONGODB_URI vers l'hôte adéquat.
+ */
 const fileEnv = readEnvFile(new URL('../.env.local', import.meta.url));
 const uri = process.env.MONGODB_URI ?? fileEnv.MONGODB_URI;
 const dbName = process.env.MONGODB_DB_NAME ?? fileEnv.MONGODB_DB_NAME ?? 'tourism';
