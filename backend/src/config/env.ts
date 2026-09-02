@@ -100,7 +100,19 @@ const envSchema = z.object({
   UPLOAD_DIR: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
 
   /* --- Emails -------------------------------------------------------------- */
-  MAIL_PROVIDER: z.enum(['console', 'resend']).default('console'),
+  MAIL_PROVIDER: z.enum(['console', 'resend', 'smtp']).default('console'),
+
+  /*
+   * Envoi par SMTP. Requis uniquement lorsque MAIL_PROVIDER vaut « smtp ».
+   *
+   * Le mot de passe n'est pas celui du compte : les fournisseurs sérieux
+   * exigent un mot de passe d'application, révocable indépendamment, afin
+   * qu'une fuite du serveur ne livre pas la boîte entière.
+   */
+  SMTP_HOST: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+  SMTP_USER: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  SMTP_PASSWORD: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
   MAIL_API_KEY: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
   /** Expéditeur, au format « Nom <adresse@domaine> ». Le domaine doit être vérifié. */
   MAIL_FROM: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),

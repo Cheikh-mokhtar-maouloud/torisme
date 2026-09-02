@@ -41,5 +41,19 @@ export class ResendMailProvider implements MailProvider {
       });
       throw new Error(`Envoi d’email refusé par le fournisseur (HTTP ${response.status})`);
     }
+
+    /*
+     * Le succès est journalisé, pas seulement l'échec.
+     *
+     * Sans cette ligne, un envoi réussi et un envoi qui n'a jamais eu lieu
+     * produisent le même silence. Diagnostiquer « je n'ai rien reçu » revient
+     * alors à deviner — c'est exactement ce qui s'est produit lors de la
+     * première configuration.
+     *
+     * L'identifiant permet de retrouver l'envoi dans le tableau de bord du
+     * fournisseur. Le contenu, lui, n'est pas journalisé : il porte les codes.
+     */
+    const body = (await response.json().catch(() => ({}))) as { id?: string };
+    logger.info('email envoyé', { provider: 'resend', to: message.to, messageId: body.id });
   }
 }
