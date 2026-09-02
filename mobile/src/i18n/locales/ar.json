@@ -178,6 +178,8 @@
     "or": "أو",
     "continueWithGoogle": "المتابعة عبر Google",
     "googleFailed": "فشل تسجيل الدخول عبر Google. حاول مجدداً.",
-    "googleNotConfigured": "تسجيل الدخول عبر Google غير مفعّل: لم يُضبط EXPO_PUBLIC_GOOGLE_CLIENT_ID."
+    "googleNotConfigured": "تسجيل الدخول عبر Google غير مفعّل: لم يُضبط EXPO_PUBLIC_GOOGLE_CLIENT_ID.",
+    "googleSetupTitle": "تسجيل الدخول عبر Google يحتاج إعداداً",
+    "googleSetupSteps": "كل شيء جاهز في التطبيق والخادم. ينقص معرّف OAuth، ولا يمكن إنشاؤه إلا من حسابك على Google:\n\n1. console.cloud.google.com ← APIs & Services ← Credentials\n2. Create credentials ← OAuth client ID ← Web application\n3. Authorized redirect URIs: https://auth.expo.io/@حسابك/tourism-platform\n4. انسخ المعرّف إلى EXPO_PUBLIC_GOOGLE_CLIENT_ID (التطبيق) وGOOGLE_CLIENT_ID (الخادم) — القيمة نفسها في الجهتين\n5. أعد تشغيل Metro، فهو لا يقرأ هذه الملفات إلا عند الإقلاع"
   }
 }

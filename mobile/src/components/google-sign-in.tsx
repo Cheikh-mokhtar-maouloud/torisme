@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
@@ -66,6 +66,20 @@ export function GoogleSignInButton({ onError }: { onError?: (message: string) =>
    * déconseille et que le linter refuse.
    */
   const handlePress = async () => {
+    /*
+     * Sans identifiant, l'appui explique au lieu de ne rien faire.
+     *
+     * Un bouton grisé ne dit pas *pourquoi* il l'est, et laisse croire à une
+     * fonctionnalité inachevée alors que tout est en place sauf une valeur de
+     * configuration. Le message nomme la variable et la marche à suivre.
+     */
+    if (!isConfigured) {
+      Alert.alert(t('auth.googleSetupTitle'), t('auth.googleSetupSteps'), [
+        { text: t('language.understood') },
+      ]);
+      return;
+    }
+
     setBusy(true);
 
     try {
@@ -112,7 +126,7 @@ export function GoogleSignInButton({ onError }: { onError?: (message: string) =>
       <PressableScale
         accessibilityLabel={t('auth.continueWithGoogle')}
         onPress={() => void handlePress()}
-        disabled={!isConfigured || !request || isBusy}
+        disabled={isBusy || (isConfigured && !request)}
         scaleTo={0.98}
         contentStyle={styles.button}
       >

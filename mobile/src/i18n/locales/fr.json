@@ -146,6 +146,8 @@
     "or": "ou",
     "continueWithGoogle": "Continuer avec Google",
     "googleFailed": "La connexion Google a échoué. Réessayez.",
-    "googleNotConfigured": "Connexion Google inactive : EXPO_PUBLIC_GOOGLE_CLIENT_ID n’est pas renseigné."
+    "googleNotConfigured": "Connexion Google inactive : EXPO_PUBLIC_GOOGLE_CLIENT_ID n’est pas renseigné.",
+    "googleSetupTitle": "Connexion Google à configurer",
+    "googleSetupSteps": "Tout est en place côté application et serveur. Il manque l’identifiant OAuth, que seul votre compte Google peut créer :\n\n1. console.cloud.google.com → APIs & Services → Credentials\n2. Create credentials → OAuth client ID → Web application\n3. Authorized redirect URIs : https://auth.expo.io/@votre-compte/tourism-platform\n4. Copier l’identifiant dans EXPO_PUBLIC_GOOGLE_CLIENT_ID (mobile) et GOOGLE_CLIENT_ID (serveur), la même valeur des deux côtés\n5. Relancer Metro, qui ne lit ces fichiers qu’au démarrage"
   }
 }
