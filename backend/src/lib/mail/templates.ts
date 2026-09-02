@@ -129,3 +129,36 @@ export function excursionReminderEmail(
     ),
   };
 }
+
+/**
+ * Code de vérification de l'adresse électronique.
+ *
+ * Le code figure aussi dans le **sujet** du message : sur téléphone, la
+ * notification affiche le sujet, ce qui évite d'ouvrir l'application de
+ * courriel pour six chiffres.
+ *
+ * Aucun lien cliquable : un lien de vérification dans un courriel est le
+ * support privilégié de l'hameçonnage, et il habitue l'utilisateur à cliquer.
+ * Un code se recopie dans une application qu'il a lui-même ouverte.
+ */
+export function emailVerificationEmail(to: string, code: string, minutes: number): MailMessage {
+  return {
+    to,
+    subject: `${code} — votre code de vérification ${BRAND}`,
+    text:
+      `Votre code de vérification est : ${code}
+
+` +
+      `Il expire dans ${minutes} minutes.
+
+` +
+      `Si vous n'avez pas créé de compte sur ${BRAND}, ignorez ce message.`,
+    html: layout(
+      'Vérifiez votre adresse',
+      `<p style="margin:0 0 16px;line-height:22px;color:#475569">Saisissez ce code dans l'application :</p>` +
+        `<p style="margin:0 0 16px;font-size:32px;font-weight:700;letter-spacing:6px;color:#0f766e">${code}</p>` +
+        `<p style="margin:0;line-height:22px;color:#64748b">Il expire dans ${minutes} minutes. ` +
+        `Si vous n'avez pas créé de compte, ignorez ce message.</p>`,
+    ),
+  };
+}

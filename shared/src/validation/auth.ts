@@ -53,3 +53,23 @@ export const googleAuthSchema = z.object({
   idToken: z.string().min(20),
 });
 export type GoogleAuthInput = z.infer<typeof googleAuthSchema>;
+
+/**
+ * Vérification de l'adresse par code.
+ *
+ * Six chiffres exactement, et uniquement des chiffres : le contrôle rejette
+ * avant toute requête à la base ce qui ne peut de toute façon pas être un code.
+ */
+export const verifyEmailSchema = z.object({
+  email: z.email().toLowerCase().trim(),
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'Le code comporte six chiffres'),
+});
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+
+export const resendVerificationSchema = z.object({
+  email: z.email().toLowerCase().trim(),
+});
+export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;

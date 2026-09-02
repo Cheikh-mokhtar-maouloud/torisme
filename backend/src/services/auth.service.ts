@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomInt } from 'node:crypto';
 
 import { UserRole } from '@tourism/shared/constants';
 import type { User as UserDto } from '@tourism/shared/types';
@@ -15,7 +15,7 @@ import { HttpError } from '@/lib/errors';
 import { SecurityEvent, securityEvent } from '@/lib/security-log';
 import { logger } from '@/lib/logger';
 import { mailer } from '@/lib/mail';
-import { passwordResetEmail, welcomeEmail } from '@/lib/mail/templates';
+import { emailVerificationEmail, passwordResetEmail, welcomeEmail } from '@/lib/mail/templates';
 import { env } from '@/config/env';
 import { serializeDocument } from '@/lib/serialize';
 import { User } from '@/models';
@@ -31,6 +31,18 @@ export interface AuthResult {
   user: UserDto;
   token: string;
   refreshToken: string;
+}
+
+/**
+ * Résultat d'une inscription.
+ *
+ * Volontairement sans jeton : l'adresse n'est pas encore vérifiée, donc aucune
+ * session n'est ouverte. Seule l'adresse est renvoyée, pour que l'écran suivant
+ * puisse la pré-remplir sans la redemander.
+ */
+export interface RegistrationResult {
+  email: string;
+  verificationRequired: true;
 }
 
 /**
@@ -50,7 +62,7 @@ function hashResetToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
-export async function register(input: RegisterInput, userAgent?: string): Promise<AuthResult> {
+export async function register(input: RegisterInput): Promise<RegistrationResult> {
   const existing = await User.findOne({ email: input.email }).select('_id').lean();
   if (existing) {
     throw HttpError.conflict('Un compte existe déjà avec cet email');
@@ -68,15 +80,152 @@ export async function register(input: RegisterInput, userAgent?: string): Promis
 
   const userId = String(created._id);
 
-  // L'échec d'envoi ne doit pas faire échouer l'inscription : le compte existe,
-  // l'utilisateur est connecté, seul le message de bienvenue manque.
-  void sendQuietly(welcomeEmail(input.email, input.fullName));
+  /*
+   * L'inscription **n'ouvre plus de session**.
+   *
+   * Tant que l'adresse n'est pas vérifiée, rien ne prouve qu'elle appartient à
+   * la personne qui vient de s'inscrire. Connecter d'emblée reviendrait à
+   * donner un compte — et l'accès aux réservations qui y seront faites — à qui
+   * saisit l'adresse d'un autre.
+   *
+   * Le parcours devient : inscription, code, connexion. C'est un aller-retour
+   * de plus, assumé : il rend l'adresse fiable, ce dont dépend toute la suite —
+   * confirmation de réservation, réinitialisation de mot de passe.
+   */
+  await issueEmailVerificationCode(userId, input.email);
 
-  return {
-    user: serializeDocument<UserDto>(created.toObject()),
-    token: await signAccessToken({ sub: userId, role: UserRole.USER, email: input.email }),
-    refreshToken: (await issueRefreshToken(userId, userAgent)).token,
-  };
+  return { email: input.email, verificationRequired: true };
+}
+
+/** Durée de vie d'un code de vérification. */
+const EMAIL_CODE_TTL_MS = 15 * 60 * 1000;
+
+/**
+ * Nombre d'essais avant invalidation du code.
+ *
+ * Six chiffres font un million de combinaisons. Sans plafond, un script les
+ * épuise en quelques minutes ; avec cinq essais, la probabilité de tomber juste
+ * est de cinq sur un million, et l'attaquant doit redemander un code — donc
+ * passer par la boîte de la victime.
+ */
+const MAX_EMAIL_CODE_ATTEMPTS = 5;
+
+/**
+ * Empreinte d'un code, **avec un secret du serveur**.
+ *
+ * Un simple SHA-256 ne protégerait rien : six chiffres font un million de
+ * combinaisons, et les parcourir toutes pour retrouver l'empreinte prend
+ * quelques secondes. C'est vérifié, pas supposé — le code d'un compte d'essai a
+ * été retrouvé ainsi à partir de sa seule empreinte.
+ *
+ * L'HMAC change la donne : sans le secret, l'attaquant ne peut pas calculer les
+ * empreintes candidates. Une copie de la base ne suffit donc plus, il lui faut
+ * aussi la configuration du serveur.
+ *
+ * Le secret dérive de `JWT_SECRET` avec un préfixe de domaine. Ce préfixe n'est
+ * pas cosmétique : sans lui, la même clé servirait à deux usages, et une
+ * faiblesse trouvée sur l'un affaiblirait l'autre.
+ */
+function hashEmailCode(code: string): string {
+  return createHmac('sha256', `email-verification:${env().JWT_SECRET}`).update(code).digest('hex');
+}
+
+/**
+ * Génère un code, l'enregistre haché, et l'envoie.
+ *
+ * `randomInt` et non `Math.random` : ce dernier est prévisible à partir de
+ * quelques tirages, ce qui suffirait à deviner le code d'un autre compte.
+ */
+async function issueEmailVerificationCode(userId: string, email: string): Promise<void> {
+  const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+
+  await User.updateOne(
+    { _id: userId },
+    {
+      $set: {
+        emailVerificationCodeHash: hashEmailCode(code),
+        emailVerificationExpiresAt: new Date(Date.now() + EMAIL_CODE_TTL_MS),
+        emailVerificationAttempts: 0,
+      },
+    },
+  );
+
+  void sendQuietly(emailVerificationEmail(email, code, EMAIL_CODE_TTL_MS / 60_000));
+}
+
+/**
+ * Vérifie un code et marque l'adresse comme confirmée.
+ *
+ * Ne rend **pas** de session : l'utilisateur est ensuite dirigé vers la
+ * connexion. Ouvrir une session ici ferait de la vérification une seconde
+ * porte d'entrée, avec un secret à six chiffres — bien plus faible qu'un mot
+ * de passe.
+ */
+export async function verifyEmail(email: string, code: string): Promise<void> {
+  const found = await User.findOne({ email })
+    .select('+emailVerificationCodeHash +emailVerificationExpiresAt +emailVerificationAttempts')
+    .lean();
+
+  const invalid = () =>
+    HttpError.validation('Code invalide ou expiré', {
+      code: ['Ce code est invalide ou a expiré. Demandez-en un nouveau.'],
+    });
+
+  // Un compte inexistant et un code faux renvoient la même erreur : distinguer
+  // les deux permettrait d'énumérer les adresses inscrites.
+  if (!found || !found.emailVerificationCodeHash || !found.emailVerificationExpiresAt) {
+    throw invalid();
+  }
+
+  if (found.emailVerifiedAt) {
+    // Déjà vérifiée : ce n'est pas une erreur, c'est un second appui sur le
+    // bouton. Le dire évite de faire chercher un code qui ne sert plus.
+    return;
+  }
+
+  if (found.emailVerificationExpiresAt.getTime() < Date.now()) throw invalid();
+
+  if ((found.emailVerificationAttempts ?? 0) >= MAX_EMAIL_CODE_ATTEMPTS) {
+    throw HttpError.validation('Trop de tentatives', {
+      code: ['Trop d’essais. Demandez un nouveau code.'],
+    });
+  }
+
+  if (found.emailVerificationCodeHash !== hashEmailCode(code)) {
+    await User.updateOne({ _id: found._id }, { $inc: { emailVerificationAttempts: 1 } });
+    throw invalid();
+  }
+
+  await User.updateOne(
+    { _id: found._id },
+    {
+      $set: { emailVerifiedAt: new Date() },
+      // Le code est effacé, pas conservé : un code utilisé ne doit jamais
+      // resservir, même dans sa fenêtre de validité.
+      $unset: {
+        emailVerificationCodeHash: '',
+        emailVerificationExpiresAt: '',
+        emailVerificationAttempts: '',
+      },
+    },
+  );
+
+  void sendQuietly(welcomeEmail(email, found.fullName));
+}
+
+/**
+ * Renvoie un code.
+ *
+ * Ne dit jamais si l'adresse existe : la réponse est identique dans tous les
+ * cas. Sans cela, ce point d'entrée deviendrait un moyen de tester des adresses
+ * en masse.
+ */
+export async function resendEmailVerification(email: string): Promise<void> {
+  const found = await User.findOne({ email }).select('_id emailVerifiedAt').lean();
+
+  if (!found || found.emailVerifiedAt) return;
+
+  await issueEmailVerificationCode(String(found._id), email);
 }
 
 /**
@@ -146,6 +295,27 @@ export async function login(input: LoginInput, userAgent?: string): Promise<Auth
 
   if (!found.isActive) {
     throw HttpError.forbidden('Compte désactivé');
+  }
+
+  /*
+   * Adresse non vérifiée : la connexion est refusée.
+   *
+   * Sans ce contrôle, tout le parcours de vérification serait décoratif — il
+   * suffirait d'ignorer le code et de se connecter avec le mot de passe choisi
+   * à l'inscription.
+   *
+   * Le contrôle vient **après** la vérification du mot de passe : l'annoncer
+   * avant révélerait à qui saisit une adresse au hasard qu'un compte existe et
+   * qu'il n'est pas vérifié.
+   *
+   * Les comptes antérieurs à cette règle n'ont pas de date de vérification. Ils
+   * sont repris par backfill-email-verified.mjs, sans quoi ils seraient tous
+   * bloqués au déploiement.
+   */
+  if (!found.emailVerifiedAt) {
+    throw HttpError.forbidden(
+      'Adresse non vérifiée. Saisissez le code reçu par courriel pour activer votre compte.',
+    );
   }
 
   // Connexion réussie : le compteur repart de zéro, sinon des échecs éparpillés

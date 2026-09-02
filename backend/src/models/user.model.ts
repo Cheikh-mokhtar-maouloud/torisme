@@ -67,6 +67,20 @@ const userSchema = new Schema(
      * prendre la main sur les comptes en attente de réinitialisation. Il est à
      * usage unique et de courte durée.
      */
+    /*
+     * Vérification de l'adresse électronique.
+     *
+     * Le code est stocké **haché**, comme un mot de passe. Une fuite de la base
+     * ne doit pas livrer des codes utilisables : ils ouvrent un compte.
+     *
+     * `emailVerificationAttempts` compte les essais infructueux. Un code à six
+     * chiffres n'offre qu'un million de combinaisons — sans plafond, il se
+     * force en quelques minutes.
+     */
+    emailVerificationCodeHash: { type: String, select: false },
+    emailVerificationExpiresAt: { type: Date, select: false },
+    emailVerificationAttempts: { type: Number, default: 0, select: false },
+
     passwordResetTokenHash: { type: String, select: false },
     passwordResetExpiresAt: { type: Date, select: false },
 
