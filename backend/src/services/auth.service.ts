@@ -152,7 +152,7 @@ async function issueEmailVerificationCode(userId: string, email: string): Promis
     },
   );
 
-  void sendQuietly(emailVerificationEmail(email, code, EMAIL_CODE_TTL_MS / 60_000));
+  await sendCodeOrFail(emailVerificationEmail(email, code, EMAIL_CODE_TTL_MS / 60_000));
 }
 
 /**
@@ -235,7 +235,48 @@ export async function resendEmailVerification(email: string): Promise<void> {
  *
  * Les parcours d'authentification ne doivent jamais dépendre de la
  * disponibilité du serveur d'emails : l'échec est journalisé, pas propagé.
+ *
+ * Cela vaut pour les messages **accessoires** — bienvenue, notifications. Un
+ * code de vérification, lui, est le parcours entier : le taire laisse
+ * l'utilisateur attendre indéfiniment un message qui ne viendra jamais, en lui
+ * ayant affirmé qu'il était parti. Voir `sendCodeOrFail`.
  */
+/**
+ * Envoi d'un code, dont l'échec ne doit pas passer inaperçu.
+ *
+ * ─── Pourquoi ce n'est pas `sendQuietly` ────────────────────────────────────
+ *
+ * L'application annonce « un code vient d'être envoyé ». Si l'envoi a échoué,
+ * cette phrase est fausse, et l'utilisateur attend un message qui n'existera
+ * jamais. C'est exactement ce qui s'est produit : le fournisseur refusait
+ * l'adresse, l'application affirmait le contraire, et rien à l'écran ne
+ * permettait de le savoir.
+ *
+ * ─── Pourquoi l'erreur n'est remontée qu'en développement ───────────────────
+ *
+ * En production, propager l'échec révélerait l'existence du compte : on
+ * n'essaie d'envoyer que si le compte existe, donc une erreur visible
+ * distinguerait une adresse inscrite d'une adresse inconnue — précisément ce
+ * que la réponse uniforme protège.
+ *
+ * En développement, ce risque n'existe pas et le silence coûte des heures.
+ */
+async function sendCodeOrFail(
+  message: Parameters<ReturnType<typeof mailer>['send']>[0],
+): Promise<void> {
+  try {
+    await mailer().send(message);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+
+    logger.error('code non envoyé', { subject: message.subject, errorMessage: detail });
+
+    if (env().APP_ENV !== 'production') {
+      throw HttpError.validation(`Envoi du code impossible : ${detail}`);
+    }
+  }
+}
+
 async function sendQuietly(
   message: Parameters<ReturnType<typeof mailer>['send']>[0],
 ): Promise<void> {
@@ -583,7 +624,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
     },
   );
 
-  await sendQuietly(passwordResetEmail(email, code, RESET_TTL_MS / 60_000));
+  await sendCodeOrFail(passwordResetEmail(email, code, RESET_TTL_MS / 60_000));
 }
 
 export async function resetPassword(
