@@ -49,6 +49,9 @@ export type RootStackParamList = {
    * à rien sans que l'utilisateur comprenne pourquoi.
    */
   VerifyEmail: { email: string };
+  ForgotPassword: undefined;
+  /** L'adresse est portée par la route : la redemander serait une occasion de faute de frappe. */
+  ResetPassword: { email: string };
 };
 
 declare global {

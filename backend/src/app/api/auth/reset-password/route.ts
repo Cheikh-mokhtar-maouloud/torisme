@@ -6,7 +6,7 @@ import { resetPassword } from '@/services/auth.service';
 
 /** POST /api/auth/reset-password */
 export const POST = withRoute(async (request) => {
-  const { token, password } = await parseBody(request, resetPasswordSchema);
-  await resetPassword(token, password);
+  const { email, code, password } = await parseBody(request, resetPasswordSchema);
+  await resetPassword(email, code, password);
   return ok({ message: 'Mot de passe réinitialisé. Vous pouvez vous connecter.' });
 });

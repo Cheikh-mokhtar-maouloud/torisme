@@ -88,7 +88,9 @@
     "changePassword": "Password",
     "login": "Sign in",
     "register": "Create an account",
-    "verifyEmail": "Verification"
+    "verifyEmail": "Verification",
+    "forgotPassword": "Forgotten password",
+    "resetPassword": "New password"
   },
   "favorite": {
     "add": "Add to favourites",
@@ -177,5 +179,20 @@
     "sixDigits": "The code has six digits.",
     "failed": "Verification failed. Try again.",
     "successThenLogin": "Email verified. Sign in to continue."
+  },
+  "reset": {
+    "forgotLink": "Forgot your password?",
+    "forgotTitle": "Forgotten password",
+    "forgotSubtitle": "Enter your email and we will send you a six-digit code.",
+    "sendCode": "Send the code",
+    "invalidEmail": "Enter a valid email address.",
+    "requestFailed": "Could not send. Try again.",
+    "resetTitle": "New password",
+    "resetSubtitle": "Enter the code sent to {{email}}, then your new password.",
+    "newPassword": "New password",
+    "passwordTooShort": "The password must be at least 8 characters.",
+    "confirm": "Change password",
+    "failed": "Reset failed. Try again.",
+    "successThenLogin": "Password changed. Sign in with the new one."
   }
 }

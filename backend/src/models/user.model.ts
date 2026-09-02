@@ -83,6 +83,7 @@ const userSchema = new Schema(
 
     passwordResetTokenHash: { type: String, select: false },
     passwordResetExpiresAt: { type: Date, select: false },
+    passwordResetAttempts: { type: Number, default: 0, select: false },
 
     /**
      * Verrouillage après échecs répétés.

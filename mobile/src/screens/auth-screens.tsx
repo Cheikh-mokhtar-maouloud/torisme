@@ -310,6 +310,12 @@ const styles = StyleSheet.create({
   },
   form: { gap: spacing.lg, marginTop: spacing.xl },
   footer: { marginTop: spacing.xl, alignItems: 'center' },
+  forgotLink: {
+    ...typography.caption,
+    color: colors.brand[700],
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   footerLink: { ...typography.body, color: colors.text.secondary },
   footerLinkStrong: { color: colors.brand[700], fontWeight: '600' },
 });

@@ -1,33 +1,25 @@
 import { forgotPasswordSchema } from '@tourism/shared/validation';
 
 import { ok } from '@/lib/api-response';
-import { env } from '@/config/env';
 import { parseBody, withRoute } from '@/lib/handler';
-import { logger } from '@/lib/logger';
 import { requestPasswordReset } from '@/services/auth.service';
 
 /**
  * POST /api/auth/forgot-password
  *
- * Répond **toujours** la même chose, que l'email existe ou non : une réponse
- * différenciée permettrait d'énumérer les comptes enregistrés.
+ * Répond toujours la même chose, que l'adresse existe ou non. Une réponse
+ * différenciée ferait de ce point d'entrée un moyen de tester des adresses en
+ * masse.
+ *
+ * Le code n'est plus journalisé, même en développement : il l'était pour
+ * dérouler le parcours avant que l'envoi de courriels existe. Un secret dans
+ * les journaux finit toujours par se retrouver là où on ne l'attend pas.
  */
 export const POST = withRoute(async (request) => {
   const { email } = await parseBody(request, forgotPasswordSchema);
-  const token = await requestPasswordReset(email);
-
-  /*
-   * L'envoi d'emails arrive en Phase 11. En attendant, le jeton est journalisé
-   * en développement pour permettre de dérouler le parcours.
-   *
-   * Il n'est jamais renvoyé dans la réponse ni journalisé en production : ce
-   * serait offrir la réinitialisation de n'importe quel compte à qui la demande.
-   */
-  if (token && env().APP_ENV !== 'production') {
-    logger.info('jeton de réinitialisation (développement uniquement)', { email, token });
-  }
+  await requestPasswordReset(email);
 
   return ok({
-    message: 'Si un compte existe pour cet email, un lien de réinitialisation vient d’être envoyé.',
+    message: 'Si un compte existe pour cet email, un code vient d’être envoyé.',
   });
 });

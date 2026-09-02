@@ -23,8 +23,19 @@ export const forgotPasswordSchema = z.object({
 });
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 
+/**
+ * Réinitialisation par code.
+ *
+ * L'adresse accompagne le code : celui-ci ne fait que six chiffres et n'est
+ * unique que pour un compte donné. Sans l'adresse, il faudrait le chercher
+ * parmi tous les comptes, et deux utilisateurs pourraient recevoir le même.
+ */
 export const resetPasswordSchema = z.object({
-  token: z.string().min(16, 'Jeton invalide'),
+  email: emailSchema,
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'Le code comporte six chiffres'),
   password: passwordSchema,
 });
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
