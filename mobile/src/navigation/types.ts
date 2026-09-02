@@ -41,6 +41,14 @@ export type RootStackParamList = {
   ChangePassword: undefined;
   Login: { message?: string } | undefined;
   Register: undefined;
+  /**
+   * Vérification de l'adresse après inscription.
+   *
+   * L'adresse voyage en paramètre : la redemander juste après l'avoir saisie
+   * serait une occasion de faute de frappe, et le code ne correspondrait alors
+   * à rien sans que l'utilisateur comprenne pourquoi.
+   */
+  VerifyEmail: { email: string };
 };
 
 declare global {

@@ -27,6 +27,10 @@ interface AuthContextValue {
   login: (input: LoginInput) => Promise<void>;
   /** Échange un jeton d'identité Google contre une session de l'application. */
   loginWithGoogle: (idToken: string) => Promise<void>;
+  /**
+   * Crée le compte. **N'ouvre pas de session** : l'adresse doit d'abord être
+   * vérifiée. L'appelant enchaîne sur l'écran de saisie du code.
+   */
   register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -114,9 +118,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(
     async (input: RegisterInput) => {
-      await persist(await api.post<AuthResult>('/api/auth/register', input));
+      /*
+       * Aucun `persist` : le serveur ne renvoie plus de jeton tant que
+       * l'adresse n'est pas vérifiée. Enregistrer une session ici échouerait
+       * silencieusement — le jeton serait `undefined` — et laisserait
+       * l'application dans un état à demi connecté.
+       */
+      await api.post('/api/auth/register', input);
     },
-    [persist],
+    // Aucune dépendance : la fonction n'ouvre plus de session et ne lit donc
+    // plus rien du composant.
+    [],
   );
 
   /** Rafraîchit l'utilisateur en mémoire après une modification du profil. */

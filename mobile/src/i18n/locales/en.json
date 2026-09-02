@@ -87,7 +87,8 @@
     "editProfile": "Profile",
     "changePassword": "Password",
     "login": "Sign in",
-    "register": "Create an account"
+    "register": "Create an account",
+    "verifyEmail": "Verification"
   },
   "favorite": {
     "add": "Add to favourites",
@@ -149,5 +150,16 @@
     "googleNotConfigured": "Google sign-in inactive: EXPO_PUBLIC_GOOGLE_CLIENT_ID is not set.",
     "googleSetupTitle": "Google sign-in needs setup",
     "googleSetupSteps": "Everything is in place in the app and on the server. The OAuth client ID is missing, and only your Google account can create it:\n\n1. console.cloud.google.com → APIs & Services → Credentials\n2. Create credentials → OAuth client ID → Web application\n3. Authorized redirect URIs: https://auth.expo.io/@your-account/tourism-platform\n4. Copy the ID into EXPO_PUBLIC_GOOGLE_CLIENT_ID (mobile) and GOOGLE_CLIENT_ID (server) — the same value on both sides\n5. Restart Metro; it only reads those files at startup"
+  },
+  "verify": {
+    "title": "Verify your email",
+    "subtitle": "We sent a six-digit code to {{email}}.",
+    "codeLabel": "Code received",
+    "confirm": "Verify",
+    "resend": "Send a new code",
+    "resent": "If this address is registered, a new code has just been sent.",
+    "sixDigits": "The code has six digits.",
+    "failed": "Verification failed. Try again.",
+    "successThenLogin": "Email verified. Sign in to continue."
   }
 }

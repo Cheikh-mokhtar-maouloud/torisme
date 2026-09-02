@@ -138,7 +138,13 @@ export function RegisterScreen() {
 
     try {
       await register(parsed.data);
-      navigation.goBack();
+
+      /*
+       * `replace` : l'inscription ne doit pas rester dans l'historique. Le
+       * compte existe désormais, et y revenir ne produirait qu'un refus pour
+       * doublon.
+       */
+      navigation.replace('VerifyEmail', { email: parsed.data.email });
     } catch (error) {
       setFormError(
         error instanceof ApiRequestError ? error.message : 'Inscription impossible. Réessayez.',

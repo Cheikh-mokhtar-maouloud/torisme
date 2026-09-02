@@ -119,7 +119,8 @@
     "editProfile": "الملف الشخصي",
     "changePassword": "كلمة المرور",
     "login": "تسجيل الدخول",
-    "register": "إنشاء حساب"
+    "register": "إنشاء حساب",
+    "verifyEmail": "التحقّق"
   },
   "favorite": {
     "add": "إضافة إلى المفضّلة",
@@ -181,5 +182,16 @@
     "googleNotConfigured": "تسجيل الدخول عبر Google غير مفعّل: لم يُضبط EXPO_PUBLIC_GOOGLE_CLIENT_ID.",
     "googleSetupTitle": "تسجيل الدخول عبر Google يحتاج إعداداً",
     "googleSetupSteps": "كل شيء جاهز في التطبيق والخادم. ينقص معرّف OAuth، ولا يمكن إنشاؤه إلا من حسابك على Google:\n\n1. console.cloud.google.com ← APIs & Services ← Credentials\n2. Create credentials ← OAuth client ID ← Web application\n3. Authorized redirect URIs: https://auth.expo.io/@حسابك/tourism-platform\n4. انسخ المعرّف إلى EXPO_PUBLIC_GOOGLE_CLIENT_ID (التطبيق) وGOOGLE_CLIENT_ID (الخادم) — القيمة نفسها في الجهتين\n5. أعد تشغيل Metro، فهو لا يقرأ هذه الملفات إلا عند الإقلاع"
+  },
+  "verify": {
+    "title": "تحقّق من بريدك",
+    "subtitle": "أرسلنا رمزاً من ستة أرقام إلى {{email}}.",
+    "codeLabel": "الرمز المستلم",
+    "confirm": "تحقّق",
+    "resend": "إرسال رمز جديد",
+    "resent": "إن كان هذا العنوان مسجّلاً، فقد أُرسل رمز جديد.",
+    "sixDigits": "يتكوّن الرمز من ستة أرقام.",
+    "failed": "تعذّر التحقّق. حاول مجدداً.",
+    "successThenLogin": "تم التحقّق من البريد. سجّل الدخول للمتابعة."
   }
 }

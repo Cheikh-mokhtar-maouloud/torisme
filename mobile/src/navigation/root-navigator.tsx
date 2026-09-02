@@ -21,6 +21,7 @@ import {
   RestaurantDetailScreen,
 } from '../screens/place-detail-screens';
 import { LoginScreen, RegisterScreen } from '../screens/auth-screens';
+import { VerifyEmailScreen } from '../screens/verify-email-screen';
 import { ChangePasswordScreen, EditProfileScreen } from '../screens/account-screens';
 import { FavoritesScreen, WriteReviewScreen } from '../screens/social-screens';
 import { NotificationsScreen } from '../screens/notifications-screen';
@@ -238,6 +239,17 @@ export function RootNavigator() {
           name="Register"
           component={RegisterScreen}
           options={{ title: t('screens.register') }}
+        />
+        <Stack.Screen
+          name="VerifyEmail"
+          component={VerifyEmailScreen}
+          options={{
+            title: t('screens.verifyEmail'),
+            // Pas de retour : le compte est créé, revenir au formulaire
+            // d'inscription ne mènerait qu'à un doublon refusé.
+            headerBackVisible: false,
+            gestureEnabled: false,
+          }}
         />
       </Stack.Group>
     </Stack.Navigator>
