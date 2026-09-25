@@ -1,6 +1,7 @@
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Gallery } from '../components/gallery';
@@ -13,6 +14,8 @@ import type { RootStackParamList } from '../navigation/types';
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
 export function RoomDetailScreen() {
+  // Avant tout retour anticipé : l'ordre des hooks doit rester identique.
+  const { t } = useTranslation();
   const route = useRoute<RouteProp<RootStackParamList, 'RoomDetail'>>();
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
@@ -78,7 +81,7 @@ export function RoomDetailScreen() {
       <View style={[styles.actionBar, { paddingBottom: insets.bottom + spacing.md }]}>
         <View>
           <Text style={styles.price}>{formatMoney(data.pricePerNight, data.currency)}</Text>
-          <Text style={styles.priceUnit}>par nuit</Text>
+          <Text style={styles.priceUnit}>{t('common.perNight')}</Text>
         </View>
         <Button
           label="Choisir les dates"

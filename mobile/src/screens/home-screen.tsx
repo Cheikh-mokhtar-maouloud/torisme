@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SUPPORTED_COUNTRIES } from '@tourism/shared/constants';
@@ -14,8 +15,9 @@ import {
 } from '../components/cards';
 import { ErrorState } from '../components/ui';
 import { Icon, type IconName } from '../components/icon';
+import { FadeInUp, PressableScale } from '../components/motion';
 import { useAttractions, useExcursions, useHotels, useRestaurants } from '../api/queries';
-import { colors, layout, radius, spacing, typography } from '../theme';
+import { accent, colors, layout, radius, spacing, typography, type AccentName } from '../theme';
 import { formatMoney } from '../lib/format';
 import type { PlaceTab, RootStackParamList } from '../navigation/types';
 
@@ -29,6 +31,7 @@ type Navigation = NativeStackNavigationProp<RootStackParamList>;
  * d'épuiser une catégorie. L'utilisateur bascule vers Explorer pour parcourir.
  */
 export function HomeScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
 
@@ -46,41 +49,74 @@ export function HomeScreen() {
       contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.md }]}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.header}>
+      <FadeInUp style={styles.header}>
         <Text style={styles.eyebrow}>
           {SUPPORTED_COUNTRIES.map((country) => country.name).join(' · ')}
         </Text>
-        <Text style={styles.heading}>Où partez-vous ?</Text>
-      </View>
+        <Text style={styles.heading}>{t('home.heading')}</Text>
+      </FadeInUp>
 
-      <Pressable
-        accessibilityRole="search"
-        accessibilityLabel="Rechercher un hôtel, un restaurant ou une attraction"
-        onPress={() => goToExplore('hotels')}
-        style={({ pressed }) => [styles.searchBar, pressed && styles.pressed]}
-      >
-        <Icon name="search" size={19} color={colors.text.muted} />
-        <Text style={styles.searchPlaceholder}>Rechercher une destination…</Text>
-      </Pressable>
+      <FadeInUp delay={40}>
+        <PressableScale
+          accessibilityRole="search"
+          accessibilityLabel={t('home.searchLabel')}
+          onPress={() => goToExplore('hotels')}
+          // Un champ pleine largeur qui s'enfonce autant qu'une pastille
+          // paraîtrait mou : plus la surface est grande, plus l'échelle doit
+          // être discrète pour que le déplacement des bords reste comparable.
+          scaleTo={0.985}
+          style={styles.searchBar}
+        >
+          <View style={styles.searchInner}>
+            <Icon name="search" size={19} color={colors.text.muted} />
+            <Text style={styles.searchPlaceholder}>{t('home.searchPlaceholder')}</Text>
+          </View>
+        </PressableScale>
+      </FadeInUp>
 
       <View style={styles.categories}>
-        {CATEGORIES.map((category) => (
-          <Pressable
+        {CATEGORIES.map((category, index) => (
+          <FadeInUp
             key={category.type}
-            accessibilityRole="button"
-            onPress={() => goToExplore(category.type)}
-            style={({ pressed }) => [styles.category, pressed && styles.pressed]}
+            // Décalage court entre les quatre : elles se posent l'une après
+            // l'autre de gauche à droite, dans le sens de la lecture.
+            delay={60 + index * 50}
+            style={styles.categorySlot}
           >
-            <View style={styles.categoryIcon}>
-              <Icon name={category.icon} size={21} color={colors.text.primary} />
-            </View>
-            <Text style={styles.categoryLabel}>{category.label}</Text>
-          </Pressable>
+            <PressableScale
+              accessibilityLabel={t(category.label)}
+              onPress={() => goToExplore(category.type)}
+              contentStyle={styles.category}
+            >
+              {/*
+                Le disque prend la teinte de sa catégorie, l'icône sa version
+                soutenue. Le gris uniforme employé jusqu'ici obligeait à lire
+                les quatre libellés pour distinguer les rubriques ; la couleur
+                les sépare avant la lecture, et c'est la même que sur la carte.
+              */}
+              <View
+                style={[styles.categoryIcon, { backgroundColor: accent[category.accent].tint }]}
+              >
+                <Icon name={category.icon} size={21} color={accent[category.accent].base} />
+              </View>
+              {/*
+                Une seule ligne, et réduite si nécessaire : « Restaurants » est
+                plus large que le quart d'écran qui lui revient et débordait de
+                la marge droite. Le repli sur deux lignes aurait décalé la
+                rangée entière, puisque les quatre partagent la même base.
+              */}
+              <Text style={styles.categoryLabel} numberOfLines={1} adjustsFontSizeToFit>
+                {t(category.label)}
+              </Text>
+            </PressableScale>
+          </FadeInUp>
         ))}
       </View>
 
       <Section
-        title="Hôtels populaires"
+        title={t('home.popularHotels')}
+        // Après les catégories, dont la dernière arrive à 210 ms.
+        delay={260}
         onSeeAll={() => goToExplore('hotels')}
         isLoading={hotels.isLoading}
         error={hotels.error}
@@ -96,7 +132,11 @@ export function HomeScreen() {
             rating={hotel.rating}
             reviewCount={hotel.reviewCount}
             {...(hotel.minPricePerNight
-              ? { footer: `dès ${formatMoney(hotel.minPricePerNight, hotel.currency)}` }
+              ? {
+                  footer: t('common.from', {
+                    price: formatMoney(hotel.minPricePerNight, hotel.currency),
+                  }),
+                }
               : {})}
             onPress={() =>
               navigation.navigate('HotelDetail', { hotelId: hotel.id, hotelName: hotel.name })
@@ -106,7 +146,14 @@ export function HomeScreen() {
       </Section>
 
       <Section
-        title="Attractions à découvrir"
+        title={t('home.attractionsToDiscover')}
+        /*
+         * Les sections suivantes sont hors de l'écran au chargement : leur
+         * décalage ne sert qu'à éviter qu'elles soient déjà posées si
+         * l'utilisateur fait défiler aussitôt. Inutile de l'allonger davantage
+         * — une attente qu'on ne voit pas n'embellit rien.
+         */
+        delay={310}
         onSeeAll={() => goToExplore('attractions')}
         isLoading={attractions.isLoading}
         error={attractions.error}
@@ -128,7 +175,8 @@ export function HomeScreen() {
       </Section>
 
       <Section
-        title="Excursions programmées"
+        title={t('home.scheduledExcursions')}
+        delay={350}
         onSeeAll={() => goToExplore('excursions')}
         isLoading={excursions.isLoading}
         error={excursions.error}
@@ -150,7 +198,8 @@ export function HomeScreen() {
       </Section>
 
       <Section
-        title="Où manger"
+        title={t('home.whereToEat')}
+        delay={390}
         onSeeAll={() => goToExplore('restaurants')}
         isLoading={restaurants.isLoading}
         error={restaurants.error}
@@ -176,11 +225,12 @@ export function HomeScreen() {
   );
 }
 
-const CATEGORIES: { type: PlaceTab; label: string; icon: IconName }[] = [
-  { type: 'hotels', label: 'Hôtels', icon: 'hotel' },
-  { type: 'attractions', label: 'Sites', icon: 'attraction' },
-  { type: 'excursions', label: 'Excursions', icon: 'excursion' },
-  { type: 'restaurants', label: 'Restaurants', icon: 'restaurant' },
+/** `label` porte une clé de traduction, résolue au rendu. */
+const CATEGORIES: { type: PlaceTab; label: string; icon: IconName; accent: AccentName }[] = [
+  { type: 'hotels', label: 'types.hotels', icon: 'hotel', accent: 'hotel' },
+  { type: 'attractions', label: 'types.attractions', icon: 'attraction', accent: 'attraction' },
+  { type: 'excursions', label: 'types.excursions', icon: 'excursion', accent: 'excursion' },
+  { type: 'restaurants', label: 'types.restaurants', icon: 'restaurant', accent: 'restaurant' },
 ];
 
 /**
@@ -196,6 +246,7 @@ function Section({
   error,
   onRetry,
   isEmpty,
+  delay,
   children,
 }: {
   title: string;
@@ -204,24 +255,28 @@ function Section({
   error: unknown;
   onRetry: () => void;
   isEmpty: boolean | undefined;
+  /** Décalage d'apparition, croissant avec la position dans la page. */
+  delay: number;
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation();
+
   return (
-    <View style={styles.section}>
+    <FadeInUp style={styles.section} delay={delay}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{title}</Text>
         <Pressable accessibilityRole="button" onPress={onSeeAll} hitSlop={8}>
-          <Text style={styles.sectionLink}>Tout voir</Text>
+          <Text style={styles.sectionLink}>{t('common.seeAll')}</Text>
         </Pressable>
       </View>
 
       {error ? (
         <ErrorState
-          message={error instanceof Error ? error.message : 'Chargement impossible.'}
+          message={error instanceof Error ? error.message : t('common.errorGeneric')}
           onRetry={onRetry}
         />
       ) : isEmpty ? (
-        <Text style={styles.sectionEmpty}>Rien à afficher pour le moment.</Text>
+        <Text style={styles.sectionEmpty}>{t('common.empty')}</Text>
       ) : (
         <ScrollView
           horizontal
@@ -231,7 +286,7 @@ function Section({
           {isLoading ? [0, 1, 2].map((index) => <CompactCardSkeleton key={index} />) : children}
         </ScrollView>
       )}
-    </View>
+    </FadeInUp>
   );
 }
 
@@ -241,7 +296,6 @@ const styles = StyleSheet.create({
   // obligerait à les enfermer dans des rectangles blancs pour les détacher.
   screen: { flex: 1, backgroundColor: colors.surface.background },
   content: { paddingBottom: spacing.xl },
-  pressed: { opacity: 0.8 },
 
   header: {
     paddingHorizontal: layout.screenPadding,
@@ -255,8 +309,15 @@ const styles = StyleSheet.create({
   },
   heading: { ...typography.display, color: colors.text.primary, marginTop: spacing.sm },
 
-  searchBar: {
-    marginHorizontal: layout.screenPadding,
+  /*
+   * La marge reste sur la zone tactile, l'apparence passe à l'intérieur.
+   *
+   * C'est la vue animée qui s'intercale entre les deux : lui laisser le fond et
+   * le rayon ferait grandir la surface colorée avec l'échelle, alors qu'on veut
+   * seulement voir le champ s'enfoncer.
+   */
+  searchBar: { marginHorizontal: layout.screenPadding },
+  searchInner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
@@ -273,15 +334,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.screenPadding,
     marginTop: spacing.xl,
   },
-  category: { alignItems: 'center', gap: spacing.sm, flex: 1 },
-  // L'icône est posée dans un cercle gris clair : à cette taille, un trait fin
-  // isolé sur du blanc se perd. Le disque lui donne une surface et aligne les
-  // quatre catégories sur une même grille, quel que soit le dessin.
+  // L'enveloppe animée porte le partage de largeur, la pastille son contenu :
+  // appliquer `flex: 1` au bouton lui-même le laisserait à sa largeur naturelle,
+  // le parent animé étant désormais l'enfant direct de la rangée.
+  categorySlot: { flex: 1 },
+  // `alignItems` centre la pastille et son libellé l'un sur l'autre ;
+  // `paddingHorizontal` empêche deux libellés voisins de se toucher.
+  category: { alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.xs },
+  /*
+   * L'icône est posée dans un disque teinté : à cette taille, un trait fin
+   * isolé sur du blanc se perd. Le disque lui donne une surface et aligne les
+   * quatre catégories sur une même grille, quel que soit le dessin.
+   *
+   * La couleur du fond vient de la catégorie et se pose au rendu — elle ne peut
+   * donc pas figurer ici.
+   */
   categoryIcon: {
     width: 52,
     height: 52,
     borderRadius: radius.full,
-    backgroundColor: colors.neutral[100],
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,35 +1,58 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 import { PlaceType } from '@tourism/shared/constants';
 import type { MapMarker } from '@tourism/shared/types';
 
 import { formatMoney } from '../lib/format';
-import { colors, layout, radius, spacing, typography } from '../theme';
+import { accent, colors, layout, radius, spacing, typography } from '../theme';
 import { Icon } from './icon';
 import { PlaceImage } from './place-image';
 import { Rating } from './ui';
 
-/** Couleur par type : le repère visuel principal sur une carte dense. */
+/**
+ * Couleur par type : le repère visuel principal sur une carte dense.
+ *
+ * Reprise du thème, et non redéfinie ici. Ces mêmes teintes habillent les
+ * catégories de l'accueil : c'est ce qui permet d'associer un point orange à
+ * « Restaurants » sans avoir lu la légende. Deux tables séparées auraient fini
+ * par diverger sur une nuance, et le lien se serait rompu en silence.
+ */
 export const MARKER_COLORS: Record<PlaceType, string> = {
-  [PlaceType.HOTEL]: colors.brand[600],
-  [PlaceType.RESTAURANT]: '#d97706',
-  [PlaceType.ATTRACTION]: '#7c3aed',
-  [PlaceType.EXCURSION]: colors.sand[500],
+  [PlaceType.HOTEL]: accent.hotel.base,
+  [PlaceType.RESTAURANT]: accent.restaurant.base,
+  [PlaceType.ATTRACTION]: accent.attraction.base,
+  [PlaceType.EXCURSION]: accent.excursion.base,
+};
+
+/**
+ * Fonds clairs correspondants, pour les surfaces plutôt que les points.
+ *
+ * Un filtre actif rempli de la couleur vive donnerait quatre aplats alignés en
+ * haut de l'écran, qui attireraient le regard bien plus que la carte qu'ils
+ * servent à filtrer. La teinte claire colore sans crier — et remplace le noir,
+ * qui ne disait rien de la catégorie.
+ */
+export const MARKER_TINTS: Record<PlaceType, string> = {
+  [PlaceType.HOTEL]: accent.hotel.tint,
+  [PlaceType.RESTAURANT]: accent.restaurant.tint,
+  [PlaceType.ATTRACTION]: accent.attraction.tint,
+  [PlaceType.EXCURSION]: accent.excursion.tint,
 };
 
 export const TYPE_LABELS: Record<PlaceType, string> = {
-  [PlaceType.HOTEL]: 'Hôtels',
-  [PlaceType.RESTAURANT]: 'Restaurants',
-  [PlaceType.ATTRACTION]: 'Sites',
-  [PlaceType.EXCURSION]: 'Excursions',
+  [PlaceType.HOTEL]: 'types.hotels',
+  [PlaceType.RESTAURANT]: 'types.restaurants',
+  [PlaceType.ATTRACTION]: 'types.attractions',
+  [PlaceType.EXCURSION]: 'types.excursions',
 };
 
 const PRICE_SUFFIX: Record<PlaceType, string> = {
-  [PlaceType.HOTEL]: ' / nuit',
+  [PlaceType.HOTEL]: 'common.perNight',
   [PlaceType.RESTAURANT]: '',
-  [PlaceType.ATTRACTION]: ' / entrée',
-  [PlaceType.EXCURSION]: ' / place',
+  [PlaceType.ATTRACTION]: 'common.perEntry',
+  [PlaceType.EXCURSION]: 'common.perSeat',
 };
 
 /**
@@ -44,6 +67,9 @@ export function MapMarkerCard({
   onPress,
   onClose,
   onLayout,
+  onRoute,
+  routeSummary,
+  isRouting = false,
 }: {
   marker: MapMarker;
   onPress: () => void;
@@ -57,7 +83,18 @@ export function MapMarkerCard({
    * taille du texte dans les réglages du système.
    */
   onLayout?: (height: number) => void;
+  /**
+   * Demande d'itinéraire. Absent, l'action n'est pas proposée — c'est le cas
+   * tant que la position de l'utilisateur est inconnue : un itinéraire sans
+   * point de départ n'a pas de sens, et un bouton qui explique qu'il ne peut
+   * rien faire vaut moins qu'un bouton absent.
+   */
+  onRoute?: (() => void) | undefined;
+  /** Résumé de l'itinéraire calculé, affiché à la place de l'action. */
+  routeSummary?: string | undefined;
+  isRouting?: boolean;
 }) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
   return (
@@ -69,7 +106,7 @@ export function MapMarkerCard({
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Ouvrir la fiche de ${marker.name}`}
+        accessibilityLabel={t('map.openPlace', { name: marker.name })}
         onPress={onPress}
         style={({ pressed }) => [styles.card, pressed && styles.pressed]}
       >
@@ -84,7 +121,7 @@ export function MapMarkerCard({
         <View style={styles.body}>
           <View style={styles.typeRow}>
             <View style={[styles.typeDot, { backgroundColor: MARKER_COLORS[marker.type] }]} />
-            <Text style={styles.typeLabel}>{TYPE_LABELS[marker.type]}</Text>
+            <Text style={styles.typeLabel}>{t(TYPE_LABELS[marker.type])}</Text>
             {marker.distanceMeters !== undefined ? (
               <Text style={styles.distance}>· {formatDistance(marker.distanceMeters)}</Text>
             ) : null}
@@ -102,16 +139,43 @@ export function MapMarkerCard({
             {marker.price ? (
               <Text style={styles.price}>
                 {formatMoney(marker.price, marker.currency ?? 'MRU')}
-                <Text style={styles.priceUnit}>{PRICE_SUFFIX[marker.type]}</Text>
+                <Text style={styles.priceUnit}>
+                  {PRICE_SUFFIX[marker.type] ? t(PRICE_SUFFIX[marker.type]) : ''}
+                </Text>
               </Text>
             ) : null}
           </View>
         </View>
       </Pressable>
 
+      {/*
+        L'action d'itinéraire est **hors** de la zone cliquable de la fiche.
+        Imbriquée dedans, l'appui déclencherait aussi l'ouverture du lieu :
+        l'utilisateur demanderait un trajet et se retrouverait sur une autre
+        page.
+      */}
+      {onRoute || routeSummary ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('map.routeTo', { name: marker.name })}
+          onPress={onRoute}
+          disabled={!onRoute || isRouting}
+          style={({ pressed }) => [styles.routeBar, pressed && styles.pressed]}
+        >
+          {isRouting ? (
+            <ActivityIndicator size="small" color={colors.brand[700]} />
+          ) : (
+            <Icon name="excursion" size={16} color={colors.brand[700]} />
+          )}
+          <Text style={styles.routeLabel}>
+            {isRouting ? t('map.calculating') : (routeSummary ?? t('map.route'))}
+          </Text>
+        </Pressable>
+      ) : null}
+
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Fermer"
+        accessibilityLabel={t('common.close')}
         onPress={onClose}
         hitSlop={10}
         style={styles.close}
@@ -150,8 +214,36 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.9 },
 
+  /*
+   * Barre d'itinéraire, posée sous la fiche et rattachée à elle par un coin
+   * supérieur droit : elle se lit comme un prolongement, non comme un second
+   * élément flottant.
+   */
+  routeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface.background,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  routeLabel: { ...typography.caption, color: colors.brand[700], fontWeight: '700' },
+
   thumb: { width: 92, height: 92, borderRadius: radius.md, overflow: 'hidden' },
-  body: { flex: 1, gap: 1, paddingVertical: 2, paddingRight: spacing.lg },
+  /*
+   * `paddingEnd` et non `paddingRight` : la marge doit se trouver du côté où le
+   * texte se termine. En arabe, la lecture va de droite à gauche et un
+   * `paddingRight` laisserait le vide du mauvais côté — collé au texte plutôt
+   * qu'au bouton de fermeture qu'il sert à dégager.
+   */
+  body: { flex: 1, gap: 1, paddingVertical: 2, paddingEnd: spacing.lg },
 
   typeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   typeDot: { width: 8, height: 8, borderRadius: 4 },

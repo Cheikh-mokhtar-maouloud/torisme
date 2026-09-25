@@ -31,10 +31,13 @@ function layout(title: string, bodyHtml: string): string {
 </html>`;
 }
 
-function button(href: string, label: string): string {
-  return `<p style="margin:24px 0"><a href="${href}" style="display:inline-block;background:#0d9488;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:bold">${label}</a></p>
-  <p style="margin:0;font-size:12px;color:#64748b">Si le bouton ne fonctionne pas, copiez ce lien :<br>${href}</p>`;
-}
+/*
+ * Le bouton d'action a été retiré avec le dernier courriel qui en contenait un.
+ *
+ * Les deux messages transactionnels portent désormais un code à recopier, non
+ * un lien à cliquer : un lien dans un courriel est le support privilégié de
+ * l'hameçonnage, et l'habitude de cliquer est précisément ce qu'il exploite.
+ */
 
 export function welcomeEmail(to: string, fullName: string): MailMessage {
   return {
@@ -55,16 +58,26 @@ export function welcomeEmail(to: string, fullName: string): MailMessage {
  * heure et ne sert qu'une fois, de sorte qu'un email lu longtemps après ne
  * donne plus rien.
  */
-export function passwordResetEmail(to: string, resetUrl: string): MailMessage {
+export function passwordResetEmail(to: string, code: string, minutes: number): MailMessage {
   return {
     to,
-    subject: 'Réinitialiser votre mot de passe',
-    text: `Vous avez demandé à réinitialiser votre mot de passe.\n\nOuvrez ce lien, valable une heure :\n${resetUrl}\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message : votre mot de passe reste inchangé.`,
+    // Le code figure dans le sujet : sur téléphone, la notification l'affiche,
+    // ce qui évite d'ouvrir l'application de courriel pour six chiffres.
+    subject: `${code} — réinitialisation de votre mot de passe ${BRAND}`,
+    text:
+      `Votre code de réinitialisation est : ${code}
+
+` +
+      `Il expire dans ${minutes} minutes.
+
+` +
+      `Si vous n'avez rien demandé, ignorez ce message : votre mot de passe reste inchangé.`,
     html: layout(
-      'Réinitialiser votre mot de passe',
-      `<p style="margin:0;line-height:22px;color:#475569">Vous avez demandé à réinitialiser votre mot de passe. Ce lien est valable <strong>une heure</strong>.</p>
-       ${button(resetUrl, 'Choisir un nouveau mot de passe')}
-       <p style="margin:24px 0 0;font-size:13px;color:#64748b">Si vous n'êtes pas à l'origine de cette demande, ignorez ce message : votre mot de passe reste inchangé.</p>`,
+      'Réinitialisation du mot de passe',
+      `<p style="margin:0 0 16px;line-height:22px;color:#475569">Saisissez ce code dans l'application :</p>` +
+        `<p style="margin:0 0 16px;font-size:32px;font-weight:700;letter-spacing:6px;color:#0f766e">${code}</p>` +
+        `<p style="margin:0;line-height:22px;color:#64748b">Il expire dans ${minutes} minutes. ` +
+        `Si vous n'avez rien demandé, ignorez ce message : votre mot de passe reste inchangé.</p>`,
     ),
   };
 }
@@ -126,6 +139,39 @@ export function excursionReminderEmail(
          <tr><td style="padding:6px 0;color:#64748b">Rendez-vous</td><td style="padding:6px 0;text-align:right">${details.departure}</td></tr>
          <tr><td style="padding:6px 0;color:#64748b">Places</td><td style="padding:6px 0;text-align:right">${details.seats}</td></tr>
        </table>`,
+    ),
+  };
+}
+
+/**
+ * Code de vérification de l'adresse électronique.
+ *
+ * Le code figure aussi dans le **sujet** du message : sur téléphone, la
+ * notification affiche le sujet, ce qui évite d'ouvrir l'application de
+ * courriel pour six chiffres.
+ *
+ * Aucun lien cliquable : un lien de vérification dans un courriel est le
+ * support privilégié de l'hameçonnage, et il habitue l'utilisateur à cliquer.
+ * Un code se recopie dans une application qu'il a lui-même ouverte.
+ */
+export function emailVerificationEmail(to: string, code: string, minutes: number): MailMessage {
+  return {
+    to,
+    subject: `${code} — votre code de vérification ${BRAND}`,
+    text:
+      `Votre code de vérification est : ${code}
+
+` +
+      `Il expire dans ${minutes} minutes.
+
+` +
+      `Si vous n'avez pas créé de compte sur ${BRAND}, ignorez ce message.`,
+    html: layout(
+      'Vérifiez votre adresse',
+      `<p style="margin:0 0 16px;line-height:22px;color:#475569">Saisissez ce code dans l'application :</p>` +
+        `<p style="margin:0 0 16px;font-size:32px;font-weight:700;letter-spacing:6px;color:#0f766e">${code}</p>` +
+        `<p style="margin:0;line-height:22px;color:#64748b">Il expire dans ${minutes} minutes. ` +
+        `Si vous n'avez pas créé de compte, ignorez ce message.</p>`,
     ),
   };
 }

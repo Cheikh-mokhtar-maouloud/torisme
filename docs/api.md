@@ -210,6 +210,17 @@ restantes **et le prix total**. Le montant est calculé par le serveur et n'est
 jamais recomposé par un client : un prix envoyé depuis l'application serait
 modifiable.
 
+Les réservations renvoyées portent `hotelName` et `roomName`, joints par le
+serveur. Une réservation ne stocke que des identifiants : sans ces champs, une
+liste ne pourrait afficher que des références, ou devrait lancer une requête par
+ligne. Les excursions ont l'équivalent — `excursionTitle`, `destination` et
+`startsAt`.
+
+Ces champs sont **facultatifs** : ils sont absents lorsque le lieu a été
+supprimé depuis. Aucune valeur de repli n'est fournie, un nom générique
+laissant croire que la donnée existe ; c'est à l'affichage de retomber sur la
+référence.
+
 Une réservation inexistante ou appartenant à un tiers renvoie **404**, pas 403 :
 répondre « interdit » confirmerait son existence et permettrait de les énumérer.
 

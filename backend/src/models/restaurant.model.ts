@@ -17,7 +17,8 @@ const restaurantSchema = new Schema(
     location: { type: geoPointSchema, required: true },
     images: { type: [imageRefSchema], default: [] },
     cuisineTypes: { type: [String], default: [], index: true },
-    priceRange: { type: Number, min: 1, max: 4, required: true },
+    // Facultative : voir le schéma de validation partagé.
+    priceRange: { type: Number, min: 1, max: 4 },
     phone: { type: String, trim: true },
     /** Clé = jour de la semaine ('0' = dimanche), valeur = créneaux d'ouverture. */
     openingHours: {

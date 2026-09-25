@@ -31,28 +31,6 @@ const config: ExpoConfig = {
       monochromeImage: './assets/android-icon-monochrome.png',
       backgroundColor: '#0f766e',
     },
-    /*
-     * Clé Google Maps, requise pour les compilations natives Android.
-     *
-     * Contrairement à ce qui était noté ici, **Expo Go ne suffit pas toujours**.
-     * Sa clé embarquée est restreinte à sa propre signature : sur un émulateur,
-     * le SDK répond « Authorization failure » et la carte s'affiche vide, avec
-     * ses marqueurs et ses filtres fonctionnels mais sans tuiles. Vérifié le
-     * 13/08/2026 sur un AVD Android 10 avec Play Services 26.22.
-     *
-     * Pour voir la carte pendant le développement, il faut donc une clé propre :
-     *   EXPO_PUBLIC_MAPS_API_KEY=… npx expo start
-     *
-     * La clé doit être restreinte au nom de paquet et à la signature de
-     * l'application dans la console Google Cloud : intégrée au bundle, elle est
-     * extractible de tout APK. Sans restriction, elle serait réutilisable par
-     * n'importe qui et facturée sur votre compte.
-     *
-     * iOS utilise Apple Maps par défaut et ne demande aucune clé.
-     */
-    config: process.env.EXPO_PUBLIC_MAPS_API_KEY
-      ? { googleMaps: { apiKey: process.env.EXPO_PUBLIC_MAPS_API_KEY } }
-      : undefined,
   },
   web: {
     favicon: './assets/favicon.png',
@@ -63,6 +41,21 @@ const config: ExpoConfig = {
   plugins: [
     'expo-secure-store',
     'expo-image',
+    /*
+     * Nécessaire pour lire la langue du téléphone au premier lancement, et
+     * surtout pour que la compilation native déclare l'arabe parmi les langues
+     * prises en charge. Sans cette déclaration, iOS refuse de basculer
+     * l'interface en écriture de droite à gauche, quel que soit le réglage
+     * demandé depuis le code.
+     */
+    'expo-localization',
+    /*
+     * Requis par `expo-auth-session` : il ouvre la page de connexion Google
+     * dans un onglet du navigateur système plutôt que dans une vue web de
+     * l'application. Google refuse les vues web embarquées depuis 2021 — elles
+     * permettaient à l'application hôte de lire le mot de passe saisi.
+     */
+    'expo-web-browser',
     [
       'expo-location',
       {
@@ -76,6 +69,14 @@ const config: ExpoConfig = {
   ],
   extra: {
     apiUrl: process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000',
+    /*
+     * Identifiant client Google, vide par défaut.
+     *
+     * Sans lui, l'application n'affiche pas le bouton « Continuer avec
+     * Google » : mieux vaut son absence qu'un bouton qui échoue. Ce n'est pas
+     * un secret — il figure dans toute application publiée.
+     */
+    googleClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? '',
     appEnv: process.env.EXPO_PUBLIC_APP_ENV ?? 'development',
     realtimeUrl: process.env.EXPO_PUBLIC_REALTIME_URL ?? 'http://localhost:4100',
   },

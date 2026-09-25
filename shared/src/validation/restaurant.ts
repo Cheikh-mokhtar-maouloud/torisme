@@ -8,7 +8,12 @@ import { geoQuerySchema, objectIdSchema } from './primitives';
 export const createRestaurantSchema = placeBaseSchema.extend({
   cuisineTypes: z.array(z.string().trim().min(1).max(60)).max(15).default([]),
   /** Gamme de prix de 1 (économique) à 4 (haut de gamme). */
-  priceRange: z.coerce.number().int().min(1).max(4),
+  /*
+   * Facultative. La gamme de prix est une appréciation, pas un fait relevé :
+   * l'exiger obligeait à en inventer une pour chaque fiche importée, et une
+   * information inventée vaut moins qu'une information absente.
+   */
+  priceRange: z.coerce.number().int().min(1).max(4).optional(),
   phone: z.string().trim().max(30).optional(),
   openingHours: openingHoursSchema.optional(),
   menuUrl: z.url().optional(),

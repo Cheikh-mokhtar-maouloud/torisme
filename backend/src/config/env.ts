@@ -43,6 +43,22 @@ const envSchema = z.object({
    * rotation était censée retirer du service.
    */
   JWT_SECRET_PREVIOUS: optionalSecret(),
+
+  /**
+   * Identifiant client Google, servant d'**audience** attendue des jetons.
+   *
+   * Facultatif : sans lui la connexion Google est simplement indisponible, et
+   * l'application n'en propose pas le bouton. C'est préférable à un bouton qui
+   * échouerait — et cela permet de faire tourner le serveur sans compte Google.
+   *
+   * Ce n'est pas un secret : il voyage dans chaque requête d'authentification
+   * et figure dans l'application mobile. Le secret client, lui, n'est pas
+   * nécessaire ici : on ne fait que **vérifier** un jeton, jamais en demander un.
+   */
+  GOOGLE_CLIENT_ID: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.string().min(10).optional(),
+  ),
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('30d'),
 
@@ -84,7 +100,19 @@ const envSchema = z.object({
   UPLOAD_DIR: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
 
   /* --- Emails -------------------------------------------------------------- */
-  MAIL_PROVIDER: z.enum(['console', 'resend']).default('console'),
+  MAIL_PROVIDER: z.enum(['console', 'resend', 'smtp']).default('console'),
+
+  /*
+   * Envoi par SMTP. Requis uniquement lorsque MAIL_PROVIDER vaut « smtp ».
+   *
+   * Le mot de passe n'est pas celui du compte : les fournisseurs sérieux
+   * exigent un mot de passe d'application, révocable indépendamment, afin
+   * qu'une fuite du serveur ne livre pas la boîte entière.
+   */
+  SMTP_HOST: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+  SMTP_USER: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  SMTP_PASSWORD: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
   MAIL_API_KEY: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
   /** Expéditeur, au format « Nom <adresse@domaine> ». Le domaine doit être vérifié. */
   MAIL_FROM: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),

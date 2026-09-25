@@ -1,7 +1,9 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
+import { useAuth } from '../auth/auth-context';
 import { colors, typography } from '../theme';
 import { Icon, type IconName } from '../components/icon';
 import { ExploreScreen } from '../screens/explore-screen';
@@ -19,6 +21,8 @@ import {
   RestaurantDetailScreen,
 } from '../screens/place-detail-screens';
 import { LoginScreen, RegisterScreen } from '../screens/auth-screens';
+import { VerifyEmailScreen } from '../screens/verify-email-screen';
+import { ForgotPasswordScreen, ResetPasswordScreen } from '../screens/password-reset-screens';
 import { ChangePasswordScreen, EditProfileScreen } from '../screens/account-screens';
 import { FavoritesScreen, WriteReviewScreen } from '../screens/social-screens';
 import { NotificationsScreen } from '../screens/notifications-screen';
@@ -49,26 +53,38 @@ const TAB_ICONS: Record<keyof TabParamList, IconName> = {
   Profile: 'user',
 };
 
+/**
+ * Clés de traduction des onglets.
+ *
+ * Des clés et non des libellés : le navigateur est construit une seule fois, et
+ * y figer du texte le laisserait en français après un changement de langue.
+ */
 const TAB_LABELS: Record<keyof TabParamList, string> = {
-  Home: 'Accueil',
-  Explore: 'Explorer',
-  Map: 'Carte',
-  Bookings: 'Réservations',
-  Profile: 'Profil',
+  Home: 'tabs.home',
+  Explore: 'tabs.explore',
+  Map: 'tabs.map',
+  Bookings: 'tabs.bookings',
+  Profile: 'tabs.profile',
 };
 
 function TabNavigator() {
+  const { t } = useTranslation();
+  const { isAuthenticated } = useAuth();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         // Les écrans gèrent eux-mêmes leur zone sûre haute : un en-tête
         // supplémentaire volerait de la hauteur sur des listes déjà denses.
         headerShown: false,
-        tabBarActiveTintColor: colors.text.primary,
+        // Teal de marque plutôt que noir : l'onglet actif se distingue par la
+        // couleur, non par un simple surcroît de contraste que l'œil doit
+        // comparer d'un onglet à l'autre.
+        tabBarActiveTintColor: colors.brand[600],
         tabBarInactiveTintColor: colors.text.muted,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
-        tabBarLabel: TAB_LABELS[route.name],
+        tabBarLabel: t(TAB_LABELS[route.name]),
         // La couleur vient de `color`, fourni par le navigateur : l'onglet actif
         // et l'inactif partagent ainsi exactement le même dessin, seule la
         // teinte change. C'est ce que l'emoji ne permettait pas.
@@ -78,13 +94,31 @@ function TabNavigator() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Explore" component={ExploreScreen} />
       <Tab.Screen name="Map" component={MapScreen} />
-      <Tab.Screen name="Bookings" component={BookingsScreen} />
+      {/*
+        « Réservations » n'apparaît qu'une fois connecté.
+        Sans session, cet onglet ne peut afficher qu'une invitation à se
+        connecter : il occupe un cinquième de la barre pour ne rien faire, et
+        chaque appui est une impasse. Le proposer ne « fait pas connaître la
+        fonctionnalité » — cela promet une page qui n'existe pas encore.
+
+        « Profil » reste, lui : c'est de là qu'on se connecte. Le masquer
+        supprimerait le seul chemin vers la connexion.
+      */}
+      {isAuthenticated ? <Tab.Screen name="Bookings" component={BookingsScreen} /> : null}
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
 
 export function RootNavigator() {
+  /*
+   * `useTranslation` et non `i18n.t` directement : le hook réabonne le
+   * composant aux changements de langue. Avec l'appel direct, les titres
+   * resteraient dans la langue en vigueur au moment où le navigateur a été
+   * construit.
+   */
+  const { t } = useTranslation();
+
   return (
     <Stack.Navigator
       screenOptions={{
@@ -103,23 +137,23 @@ export function RootNavigator() {
         component={HotelDetailScreen}
         // Le titre vient du paramètre de route : il s'affiche immédiatement,
         // avant même que la fiche soit chargée.
-        options={({ route }) => ({ title: route.params.hotelName ?? 'Hôtel' })}
+        options={({ route }) => ({ title: route.params.hotelName ?? t('types.hotel') })}
       />
       <Stack.Screen
         name="RoomDetail"
         component={RoomDetailScreen}
-        options={({ route }) => ({ title: route.params.roomName ?? 'Chambre' })}
+        options={({ route }) => ({ title: route.params.roomName ?? t('types.room') })}
       />
       <Stack.Screen
         name="BookingFlow"
         component={BookingFlowScreen}
-        options={{ title: 'Votre séjour' }}
+        options={{ title: t('screens.stay') }}
       />
       <Stack.Screen
         name="BookingConfirmation"
         component={BookingConfirmationScreen}
         options={{
-          title: 'Réservation',
+          title: t('screens.booking'),
           // Pas de retour vers le formulaire : la réservation est créée, y
           // revenir n'aurait aucun sens et risquerait un doublon.
           headerBackVisible: false,
@@ -127,37 +161,53 @@ export function RootNavigator() {
         }}
       />
       <Stack.Screen
+        name="ForgotPassword"
+        component={ForgotPasswordScreen}
+        options={{ title: t('screens.forgotPassword') }}
+      />
+      <Stack.Screen
+        name="ResetPassword"
+        component={ResetPasswordScreen}
+        options={{
+          title: t('screens.resetPassword'),
+          // Revenir en arrière redemanderait un code et invaliderait celui
+          // que l'utilisateur vient de recevoir.
+          headerBackVisible: false,
+          gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen
         name="BookingDetail"
         component={BookingDetailScreen}
-        options={{ title: 'Réservation' }}
+        options={{ title: t('screens.booking') }}
       />
 
       <Stack.Screen
         name="RestaurantDetail"
         component={RestaurantDetailScreen}
-        options={({ route }) => ({ title: route.params.name ?? 'Restaurant' })}
+        options={({ route }) => ({ title: route.params.name ?? t('types.restaurant') })}
       />
       <Stack.Screen
         name="AttractionDetail"
         component={AttractionDetailScreen}
-        options={({ route }) => ({ title: route.params.name ?? 'Attraction' })}
+        options={({ route }) => ({ title: route.params.name ?? t('types.attraction') })}
       />
       <Stack.Screen
         name="ExcursionDetail"
         component={ExcursionDetailScreen}
-        options={({ route }) => ({ title: route.params.title ?? 'Excursion' })}
+        options={({ route }) => ({ title: route.params.title ?? t('types.excursion') })}
       />
 
       <Stack.Screen
         name="ExcursionBooking"
         component={ExcursionBookingScreen}
-        options={{ title: 'Réserver' }}
+        options={{ title: t('screens.book') }}
       />
       <Stack.Screen
         name="ExcursionBookingConfirmation"
         component={ExcursionBookingConfirmationScreen}
         options={{
-          title: 'Réservation',
+          title: t('screens.booking'),
           // Revenir au formulaire après une réservation créée risquerait un doublon.
           headerBackVisible: false,
           gestureEnabled: false,
@@ -166,42 +216,57 @@ export function RootNavigator() {
       <Stack.Screen
         name="ExcursionBookingDetail"
         component={ExcursionBookingDetailScreen}
-        options={{ title: 'Réservation' }}
+        options={{ title: t('screens.booking') }}
       />
 
       <Stack.Screen
         name="Notifications"
         component={NotificationsScreen}
-        options={{ title: 'Notifications' }}
+        options={{ title: t('screens.notifications') }}
       />
       <Stack.Screen
         name="Favorites"
         component={FavoritesScreen}
-        options={{ title: 'Mes favoris' }}
+        options={{ title: t('screens.favorites') }}
       />
       <Stack.Screen
         name="WriteReview"
         component={WriteReviewScreen}
-        options={{ title: 'Donner mon avis' }}
+        options={{ title: t('screens.writeReview') }}
       />
 
       <Stack.Screen
         name="EditProfile"
         component={EditProfileScreen}
-        options={{ title: 'Profil' }}
+        options={{ title: t('screens.editProfile') }}
       />
       <Stack.Screen
         name="ChangePassword"
         component={ChangePasswordScreen}
-        options={{ title: 'Mot de passe' }}
+        options={{ title: t('screens.changePassword') }}
       />
 
       <Stack.Group screenOptions={{ presentation: 'modal' }}>
-        <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Connexion' }} />
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+          options={{ title: t('screens.login') }}
+        />
         <Stack.Screen
           name="Register"
           component={RegisterScreen}
-          options={{ title: 'Créer un compte' }}
+          options={{ title: t('screens.register') }}
+        />
+        <Stack.Screen
+          name="VerifyEmail"
+          component={VerifyEmailScreen}
+          options={{
+            title: t('screens.verifyEmail'),
+            // Pas de retour : le compte est créé, revenir au formulaire
+            // d'inscription ne mènerait qu'à un doublon refusé.
+            headerBackVisible: false,
+            gestureEnabled: false,
+          }}
         />
       </Stack.Group>
     </Stack.Navigator>

@@ -47,7 +47,7 @@ export function RestaurantForm({
       <LocationFields values={restaurant} fields={state.fields} />
 
       <Fieldset title="Caractéristiques">
-        <Field label="Gamme de prix" name="priceRange" errors={state.fields?.priceRange} required>
+        <Field label="Gamme de prix" name="priceRange" errors={state.fields?.priceRange}>
           <Select
             id="priceRange"
             name="priceRange"

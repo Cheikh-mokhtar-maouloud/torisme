@@ -14,7 +14,10 @@ import {
 import { loginSchema, registerSchema } from '@tourism/shared/validation';
 
 import { ApiRequestError } from '../api/client';
+import { useTranslation } from 'react-i18next';
+
 import { useAuth } from '../auth/auth-context';
+import { GoogleSignInButton } from '../components/google-sign-in';
 import { Button, Field, Input } from '../components/ui';
 import { colors, spacing, typography } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
@@ -29,6 +32,7 @@ type Navigation = NativeStackNavigationProp<RootStackParamList>;
  * serveur, seule à faire autorité.
  */
 export function LoginScreen() {
+  const { t } = useTranslation();
   const route = useRoute<RouteProp<RootStackParamList, 'Login'>>();
   const navigation = useNavigation<Navigation>();
   const { login } = useAuth();
@@ -57,9 +61,7 @@ export function LoginScreen() {
       // revient là où il en était, typiquement au récapitulatif de réservation.
       navigation.goBack();
     } catch (error) {
-      setFormError(
-        error instanceof ApiRequestError ? error.message : 'Connexion impossible. Réessayez.',
-      );
+      setFormError(error instanceof ApiRequestError ? error.message : t('auth.loginFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -67,22 +69,23 @@ export function LoginScreen() {
 
   return (
     <AuthLayout
-      title="Connexion"
-      subtitle={route.params?.message ?? 'Retrouvez vos réservations et vos favoris.'}
+      title={t('screens.login')}
+      subtitle={route.params?.message ?? t('auth.loginSubtitle')}
       formError={formError}
       footer={
         <Pressable accessibilityRole="button" onPress={() => navigation.replace('Register')}>
           <Text style={styles.footerLink}>
-            Pas encore de compte ? <Text style={styles.footerLinkStrong}>Créer un compte</Text>
+            {t('auth.noAccount')}{' '}
+            <Text style={styles.footerLinkStrong}>{t('screens.register')}</Text>
           </Text>
         </Pressable>
       }
     >
-      <Field label="Email" error={errors.email}>
+      <Field label={t('auth.email')} error={errors.email}>
         <Input
           value={email}
           onChangeText={setEmail}
-          placeholder="vous@exemple.com"
+          placeholder={t('auth.emailExample')}
           keyboardType="email-address"
           autoCapitalize="none"
           autoComplete="email"
@@ -91,7 +94,7 @@ export function LoginScreen() {
         />
       </Field>
 
-      <Field label="Mot de passe" error={errors.password}>
+      <Field label={t('auth.password')} error={errors.password}>
         <Input
           value={password}
           onChangeText={setPassword}
@@ -105,18 +108,42 @@ export function LoginScreen() {
         />
       </Field>
 
-      <Button label="Se connecter" onPress={() => void handleSubmit()} loading={isSubmitting} />
+      <Button
+        label={t('profile.signIn')}
+        onPress={() => void handleSubmit()}
+        loading={isSubmitting}
+      />
+
+      {/*
+        Le point d'entrée manquait : le serveur savait réinitialiser un mot de
+        passe, mais rien dans l'application n'y menait.
+
+        Placé sous le bouton de connexion, et non en pied d'écran : c'est
+        l'échec d'une tentative qui fait chercher ce lien, donc c'est là que le
+        regard revient.
+      */}
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => navigation.navigate('ForgotPassword')}
+        hitSlop={8}
+      >
+        <Text style={styles.forgotLink}>{t('reset.forgotLink')}</Text>
+      </Pressable>
+
+      <GoogleSignInButton onError={setFormError} />
     </AuthLayout>
   );
 }
 
 export function RegisterScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<Navigation>();
   const { register } = useAuth();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string>();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -130,16 +157,37 @@ export function RegisterScreen() {
       return;
     }
 
+    /*
+     * La confirmation est vérifiée ici, et **pas** envoyée au serveur.
+     *
+     * Elle ne protège de rien côté serveur : un client peut envoyer deux fois
+     * la même valeur quoi qu'il arrive. Elle protège de la faute de frappe —
+     * un mot de passe masqué se saisit à l'aveugle, et une lettre de travers
+     * enferme dehors quelqu'un qui vient tout juste de s'inscrire.
+     *
+     * Le contrôle vient après celui du schéma : signaler « les mots de passe
+     * diffèrent » sur un mot de passe trop court ferait corriger la mauvaise
+     * chose.
+     */
+    if (password !== confirmPassword) {
+      setErrors({ confirmPassword: t('auth.passwordMismatch') });
+      return;
+    }
+
     setErrors({});
     setIsSubmitting(true);
 
     try {
       await register(parsed.data);
-      navigation.goBack();
+
+      /*
+       * `replace` : l'inscription ne doit pas rester dans l'historique. Le
+       * compte existe désormais, et y revenir ne produirait qu'un refus pour
+       * doublon.
+       */
+      navigation.replace('VerifyEmail', { email: parsed.data.email });
     } catch (error) {
-      setFormError(
-        error instanceof ApiRequestError ? error.message : 'Inscription impossible. Réessayez.',
-      );
+      setFormError(error instanceof ApiRequestError ? error.message : t('auth.registerFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -147,33 +195,34 @@ export function RegisterScreen() {
 
   return (
     <AuthLayout
-      title="Créer un compte"
-      subtitle="Quelques secondes suffisent pour réserver."
+      title={t('screens.register')}
+      subtitle={t('auth.registerSubtitle')}
       formError={formError}
       footer={
         <Pressable accessibilityRole="button" onPress={() => navigation.replace('Login')}>
           <Text style={styles.footerLink}>
-            Déjà inscrit ? <Text style={styles.footerLinkStrong}>Se connecter</Text>
+            {t('auth.alreadyRegistered')}{' '}
+            <Text style={styles.footerLinkStrong}>{t('profile.signIn')}</Text>
           </Text>
         </Pressable>
       }
     >
-      <Field label="Nom complet" error={errors.fullName}>
+      <Field label={t('auth.fullName')} error={errors.fullName}>
         <Input
           value={fullName}
           onChangeText={setFullName}
-          placeholder="Fatimetou Sidi"
+          placeholder={t('auth.fullNameExample')}
           autoComplete="name"
           textContentType="name"
           invalid={Boolean(errors.fullName)}
         />
       </Field>
 
-      <Field label="Email" error={errors.email}>
+      <Field label={t('auth.email')} error={errors.email}>
         <Input
           value={email}
           onChangeText={setEmail}
-          placeholder="vous@exemple.com"
+          placeholder={t('auth.emailExample')}
           keyboardType="email-address"
           autoCapitalize="none"
           autoComplete="email"
@@ -182,11 +231,11 @@ export function RegisterScreen() {
         />
       </Field>
 
-      <Field label="Mot de passe" error={errors.password}>
+      <Field label={t('auth.password')} error={errors.password}>
         <Input
           value={password}
           onChangeText={setPassword}
-          placeholder="8 caractères minimum"
+          placeholder={t('auth.passwordHint')}
           secureTextEntry
           autoComplete="new-password"
           textContentType="newPassword"
@@ -194,7 +243,25 @@ export function RegisterScreen() {
         />
       </Field>
 
-      <Button label="Créer mon compte" onPress={() => void handleSubmit()} loading={isSubmitting} />
+      <Field label={t('auth.confirmPassword')} error={errors.confirmPassword}>
+        <Input
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          placeholder={t('auth.confirmPasswordPlaceholder')}
+          secureTextEntry
+          autoComplete="new-password"
+          textContentType="newPassword"
+          invalid={Boolean(errors.confirmPassword)}
+          onSubmitEditing={() => void handleSubmit()}
+          returnKeyType="go"
+        />
+      </Field>
+
+      <Button
+        label={t('auth.createAccount')}
+        onPress={() => void handleSubmit()}
+        loading={isSubmitting}
+      />
     </AuthLayout>
   );
 }
@@ -259,6 +326,12 @@ const styles = StyleSheet.create({
   },
   form: { gap: spacing.lg, marginTop: spacing.xl },
   footer: { marginTop: spacing.xl, alignItems: 'center' },
+  forgotLink: {
+    ...typography.caption,
+    color: colors.brand[700],
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   footerLink: { ...typography.body, color: colors.text.secondary },
   footerLinkStrong: { color: colors.brand[700], fontWeight: '600' },
 });

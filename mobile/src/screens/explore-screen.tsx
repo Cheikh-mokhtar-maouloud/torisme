@@ -14,18 +14,21 @@ import {
   RestaurantCard,
 } from '../components/cards';
 import { Chip, EmptyState, ErrorState, Input } from '../components/ui';
+import { FadeInUp } from '../components/motion';
 import { useAttractions, useExcursions, useHotels, useRestaurants } from '../api/queries';
+import { useTranslation } from 'react-i18next';
+
 import { useDebouncedValue } from '../lib/use-debounced-value';
-import { colors, layout, spacing } from '../theme';
+import { accent, colors, layout, spacing, type AccentName } from '../theme';
 import type { PlaceTab, RootStackParamList, TabParamList } from '../navigation/types';
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
-const TABS: { type: PlaceTab; label: string }[] = [
-  { type: 'hotels', label: 'Hôtels' },
-  { type: 'attractions', label: 'Sites' },
-  { type: 'excursions', label: 'Excursions' },
-  { type: 'restaurants', label: 'Restaurants' },
+const TABS: { type: PlaceTab; label: string; accent: AccentName }[] = [
+  { type: 'hotels', label: 'types.hotels', accent: 'hotel' },
+  { type: 'attractions', label: 'types.attractions', accent: 'attraction' },
+  { type: 'excursions', label: 'types.excursions', accent: 'excursion' },
+  { type: 'restaurants', label: 'types.restaurants', accent: 'restaurant' },
 ];
 
 /**
@@ -36,6 +39,7 @@ const TABS: { type: PlaceTab; label: string }[] = [
  * mobile déjà lent.
  */
 export function ExploreScreen() {
+  const { t } = useTranslation();
   const route = useRoute<RouteProp<TabParamList, 'Explore'>>();
   const insets = useSafeAreaInsets();
 
@@ -66,29 +70,37 @@ export function ExploreScreen() {
         <Input
           value={searchInput}
           onChangeText={setSearchInput}
-          placeholder="Rechercher…"
+          placeholder={t('common.search')}
           returnKeyType="search"
           autoCorrect={false}
-          accessibilityLabel="Rechercher"
+          accessibilityLabel={t('common.search')}
           clearButtonMode="while-editing"
         />
       </View>
 
-      <FlatList
-        horizontal
-        data={TABS}
-        keyExtractor={(tab) => tab.type}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabs}
-        style={styles.tabsList}
-        renderItem={({ item }) => (
+      {/*
+       * Une rangée simple, et non un `FlatList` horizontal.
+       *
+       * Les quatre onglets sont fixes : la virtualisation n'apporte rien, et la
+       * liste imposait à la rangée une hauteur inférieure à celle des pastilles,
+       * qui apparaissaient rognées en haut et en bas. Une `View` se dimensionne
+       * sur son contenu, donc le défaut ne peut pas revenir.
+       *
+       * Les quatre tiennent sur la largeur de l'écran, comme les filtres de la
+       * carte : rien à faire défiler pour découvrir un onglet caché.
+       */}
+      <View style={styles.tabs}>
+        {TABS.map((tab) => (
           <Chip
-            label={item.label}
-            selected={activeTab === item.type}
-            onPress={() => setActiveTab(item.type)}
+            key={tab.type}
+            label={t(tab.label)}
+            selected={activeTab === tab.type}
+            onPress={() => setActiveTab(tab.type)}
+            color={accent[tab.accent].base}
+            fill
           />
-        )}
-      />
+        ))}
+      </View>
 
       <ExploreList tab={activeTab} search={search} bottomInset={insets.bottom} />
     </View>
@@ -112,6 +124,7 @@ function ExploreList({
   search: string;
   bottomInset: number;
 }) {
+  const { t } = useTranslation();
   const navigation = useNavigation<Navigation>();
   const term = search || undefined;
 
@@ -135,7 +148,7 @@ function ExploreList({
   if (query.error) {
     return (
       <ErrorState
-        message={query.error instanceof Error ? query.error.message : 'Chargement impossible.'}
+        message={query.error instanceof Error ? query.error.message : t('common.errorGeneric')}
         onRetry={() => void query.refetch()}
       />
     );
@@ -160,12 +173,8 @@ function ExploreList({
     onRefresh: () => void query.refetch(),
     ListEmptyComponent: (
       <EmptyState
-        title="Aucun résultat"
-        message={
-          search
-            ? `Rien ne correspond à « ${search} ». Essayez un autre terme.`
-            : 'Aucun contenu publié pour le moment.'
-        }
+        title={t('explore.noResults')}
+        message={search ? t('explore.noMatch', { term: search }) : t('explore.nothingPublished')}
       />
     ) as ReactElement,
   };
@@ -175,13 +184,21 @@ function ExploreList({
       <FlatList<Attraction>
         data={attractions.data?.items ?? []}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <AttractionCard
-            attraction={item}
-            onPress={() =>
-              navigation.navigate('AttractionDetail', { attractionId: item.id, name: item.name })
-            }
-          />
+        renderItem={({ item, index }) => (
+          /*
+           * Les six premieres fiches arrivent en cascade, les suivantes
+           * immediatement : au-dela d'un ecran, l'utilisateur fait defiler
+           * et une attente qu'il ne voit pas ne fait que retarder la
+           * lecture.
+           */
+          <FadeInUp delay={index < 6 ? index * 45 : 0}>
+            <AttractionCard
+              attraction={item}
+              onPress={() =>
+                navigation.navigate('AttractionDetail', { attractionId: item.id, name: item.name })
+              }
+            />
+          </FadeInUp>
         )}
         {...listProps}
       />
@@ -193,13 +210,21 @@ function ExploreList({
       <FlatList<Excursion>
         data={excursions.data?.items ?? []}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <ExcursionCard
-            excursion={item}
-            onPress={() =>
-              navigation.navigate('ExcursionDetail', { excursionId: item.id, title: item.title })
-            }
-          />
+        renderItem={({ item, index }) => (
+          /*
+           * Les six premieres fiches arrivent en cascade, les suivantes
+           * immediatement : au-dela d'un ecran, l'utilisateur fait defiler
+           * et une attente qu'il ne voit pas ne fait que retarder la
+           * lecture.
+           */
+          <FadeInUp delay={index < 6 ? index * 45 : 0}>
+            <ExcursionCard
+              excursion={item}
+              onPress={() =>
+                navigation.navigate('ExcursionDetail', { excursionId: item.id, title: item.title })
+              }
+            />
+          </FadeInUp>
         )}
         {...listProps}
       />
@@ -211,13 +236,21 @@ function ExploreList({
       <FlatList<Restaurant>
         data={restaurants.data?.items ?? []}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <RestaurantCard
-            restaurant={item}
-            onPress={() =>
-              navigation.navigate('RestaurantDetail', { restaurantId: item.id, name: item.name })
-            }
-          />
+        renderItem={({ item, index }) => (
+          /*
+           * Les six premieres fiches arrivent en cascade, les suivantes
+           * immediatement : au-dela d'un ecran, l'utilisateur fait defiler
+           * et une attente qu'il ne voit pas ne fait que retarder la
+           * lecture.
+           */
+          <FadeInUp delay={index < 6 ? index * 45 : 0}>
+            <RestaurantCard
+              restaurant={item}
+              onPress={() =>
+                navigation.navigate('RestaurantDetail', { restaurantId: item.id, name: item.name })
+              }
+            />
+          </FadeInUp>
         )}
         {...listProps}
       />
@@ -244,8 +277,12 @@ function ExploreList({
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface.background },
   searchRow: { paddingHorizontal: layout.screenPadding, paddingBottom: spacing.md },
-  tabsList: { flexGrow: 0 },
-  tabs: { paddingHorizontal: layout.screenPadding, gap: spacing.sm, paddingVertical: spacing.sm },
+  tabs: {
+    flexDirection: 'row',
+    paddingHorizontal: layout.screenPadding,
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
   /*
    * `gap` généreux entre les fiches : sans bordure ni fond pour les séparer,
    * c'est le vide qui fait la limite. Douze points ne suffisaient plus une fois

@@ -1,16 +1,24 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 import { DEFAULT_MAP_CENTER, PlaceType } from '@tourism/shared/constants';
 import type { MapMarker } from '@tourism/shared/types';
 
 import { useMapMarkers, type MapBounds } from '../api/use-map';
-import { MapMarkerCard, MARKER_COLORS, TYPE_LABELS } from '../components/map-marker-card';
+import { LeafletMap, type LeafletMapHandle } from '../components/leaflet-map';
+import {
+  formatDistance,
+  MapMarkerCard,
+  MARKER_COLORS,
+  MARKER_TINTS,
+  TYPE_LABELS,
+} from '../components/map-marker-card';
+import { fetchRoute, formatDuration, type Route } from '../api/routing';
 import { ErrorState } from '../components/ui';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { colors, radius, shadow, spacing, typography } from '../theme';
@@ -21,11 +29,17 @@ type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
 const ALL_TYPES = Object.values(PlaceType);
 
-const INITIAL_REGION: Region = {
+/**
+ * Centre initial, converti de l'étendue en degrés vers un niveau de zoom.
+ *
+ * Leaflet raisonne en niveaux de zoom là où `react-native-maps` employait une
+ * étendue en degrés. Onze correspond à peu près à l'agglomération de Nouakchott
+ * que décrivait `latitudeDelta`.
+ */
+const INITIAL_CENTER = {
   latitude: DEFAULT_MAP_CENTER.latitude,
   longitude: DEFAULT_MAP_CENTER.longitude,
-  latitudeDelta: DEFAULT_MAP_CENTER.latitudeDelta,
-  longitudeDelta: DEFAULT_MAP_CENTER.longitudeDelta,
+  zoom: 11,
 };
 
 /**
@@ -36,6 +50,7 @@ const INITIAL_REGION: Region = {
  * dont l'écrasante majorité hors écran.
  */
 export function MapScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
   /**
@@ -46,26 +61,40 @@ export function MapScreen() {
    * visible du bouton.
    */
   const [cardHeight, setCardHeight] = useState(124);
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<LeafletMapHandle>(null);
 
   const [bounds, setBounds] = useState<MapBounds | null>(null);
   const [activeTypes, setActiveTypes] = useState<PlaceType[]>(ALL_TYPES);
   const [selected, setSelected] = useState<MapMarker | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [locationNotice, setLocationNotice] = useState<string>();
+  /**
+   * Dernière position connue.
+   *
+   * Conservée dans l'état, et pas seulement transmise à la carte : c'est le
+   * point de départ de tout itinéraire, et la redemander à chaque calcul
+   * imposerait une attente du GPS que l'utilisateur ne comprendrait pas.
+   */
+  const [userPosition, setUserPosition] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [route, setRoute] = useState<Route | null>(null);
+  const [isRouting, setIsRouting] = useState(false);
 
   // Le déplacement de la carte émet en continu : sans temporisation, un seul
   // geste déclencherait des dizaines de requêtes.
   const debouncedBounds = useDebouncedValue(bounds, 350);
   const { data, error, isFetching, refetch } = useMapMarkers(debouncedBounds, activeTypes);
 
-  const handleRegionChange = useCallback((region: Region) => {
-    setBounds({
-      swLat: region.latitude - region.latitudeDelta / 2,
-      swLng: region.longitude - region.longitudeDelta / 2,
-      neLat: region.latitude + region.latitudeDelta / 2,
-      neLng: region.longitude + region.longitudeDelta / 2,
-    });
+  /*
+   * Le cadre visible arrive désormais tout calculé depuis la carte, au lieu
+   * d'être déduit d'un centre et d'une étendue. C'est plus fiable : la
+   * conversion précédente supposait une projection linéaire, fausse dès qu'on
+   * s'éloigne de l'équateur.
+   */
+  const handleBoundsChange = useCallback((next: MapBounds) => {
+    setBounds(next);
   }, []);
 
   const toggleType = (type: PlaceType) => {
@@ -94,7 +123,7 @@ export function MapScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
 
       if (status !== 'granted') {
-        setLocationNotice('Autorisation refusée. La carte reste centrée sur Nouakchott.');
+        setLocationNotice(t('map.permissionDenied'));
         return;
       }
 
@@ -102,57 +131,83 @@ export function MapScreen() {
         accuracy: Location.Accuracy.Balanced,
       });
 
-      mapRef.current?.animateToRegion(
-        {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          latitudeDelta: 0.08,
-          longitudeDelta: 0.08,
-        },
-        500,
+      const coords = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+
+      setUserPosition(coords);
+      // Le repère est dessiné **avant** le recentrage : l'utilisateur voit le
+      // point apparaître puis la carte s'y rendre, plutôt qu'un déplacement
+      // vers un endroit qui paraît vide.
+      mapRef.current?.setUserLocation(
+        coords.latitude,
+        coords.longitude,
+        position.coords.accuracy ?? undefined,
       );
+      mapRef.current?.centerOn(coords.latitude, coords.longitude, 14);
     } catch {
-      setLocationNotice('Position indisponible. Vérifiez que la localisation est activée.');
+      setLocationNotice(t('map.positionUnavailable'));
     } finally {
       setIsLocating(false);
     }
+  };
+
+  /**
+   * Calcule et trace l'itinéraire vers le lieu sélectionné.
+   *
+   * L'échec n'affiche pas d'erreur : il retombe sur la distance à vol d'oiseau,
+   * qui reste une information utile. Un service de calcul indisponible ne
+   * justifie pas d'alarmer quelqu'un qui voulait seulement savoir si un hôtel
+   * est loin.
+   */
+  const showRoute = async (destination: MapMarker) => {
+    if (!userPosition) return;
+
+    setIsRouting(true);
+    setLocationNotice(undefined);
+
+    try {
+      const found = await fetchRoute(userPosition, {
+        latitude: destination.latitude,
+        longitude: destination.longitude,
+      });
+
+      if (!found) {
+        setRoute(null);
+        mapRef.current?.clearRoute();
+        setLocationNotice(t('map.routeFallback'));
+        return;
+      }
+
+      setRoute(found);
+      mapRef.current?.setRoute(found.coordinates);
+    } finally {
+      setIsRouting(false);
+    }
+  };
+
+  /** Change de lieu : l'itinéraire précédent ne le concerne plus. */
+  const selectMarker = (marker: MapMarker) => {
+    setSelected(marker);
+    setRoute(null);
+    mapRef.current?.clearRoute();
   };
 
   const markers = data?.markers ?? [];
 
   return (
     <View style={styles.screen}>
-      <MapView
+      <LeafletMap
         ref={mapRef}
-        style={StyleSheet.absoluteFill}
-        // Google Maps sur Android ; iOS conserve Apple Maps, qui ne demande
-        // aucune clé et s'intègre mieux au système.
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        initialRegion={INITIAL_REGION}
-        onRegionChangeComplete={handleRegionChange}
-        showsUserLocation
-        showsMyLocationButton={false}
-        toolbarEnabled={false}
-        // Fermer la fiche en touchant la carte est le geste attendu.
-        onPress={() => setSelected(null)}
-      >
-        {markers.map((marker) => (
-          <Marker
-            key={`${marker.type}-${marker.id}`}
-            coordinate={{ latitude: marker.latitude, longitude: marker.longitude }}
-            pinColor={MARKER_COLORS[marker.type]}
-            title={marker.name}
-            description={marker.city}
-            // `onPress` du marqueur : la sélection alimente la mini-fiche, et
-            // `stopPropagation` empêche le `onPress` de la carte de la refermer
-            // aussitôt.
-            onPress={(event) => {
-              event.stopPropagation();
-              setSelected(marker);
-            }}
-          />
-        ))}
-      </MapView>
+        markers={markers}
+        initialCenter={INITIAL_CENTER}
+        onBoundsChange={handleBoundsChange}
+        onMarkerPress={selectMarker}
+        // Toucher la carte hors d'un marqueur referme la fiche : c'est le geste
+        // attendu, et il évite d'avoir à viser la petite croix.
+        onMapPress={() => setSelected(null)}
+      />
 
       <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
         {/*
@@ -178,11 +233,11 @@ export function MapScreen() {
                 key={type}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isActive }}
-                accessibilityLabel={`${TYPE_LABELS[type]}, ${count} sur la carte`}
+                accessibilityLabel={t('map.filterLabel', { type: t(TYPE_LABELS[type]), count })}
                 onPress={() => toggleType(type)}
                 style={({ pressed }) => [
                   styles.filter,
-                  isActive && styles.filterActive,
+                  isActive && { backgroundColor: MARKER_TINTS[type] },
                   pressed && styles.pressed,
                 ]}
               >
@@ -206,9 +261,15 @@ export function MapScreen() {
                   // ne plus tenir, il faut le voir immédiatement plutôt que de
                   // le découvrir coupé sur l'appareil d'un utilisateur.
                   numberOfLines={1}
-                  style={[styles.filterLabel, isActive && styles.filterLabelActive]}
+                  style={[
+                    styles.filterLabel,
+                    // Le libellé actif prend la couleur pleine de sa catégorie :
+                    // sur le fond teinté, elle porte assez de contraste, et la
+                    // pastille et le texte disent alors la même chose.
+                    isActive && { color: MARKER_COLORS[type] },
+                  ]}
                 >
-                  {TYPE_LABELS[type]}
+                  {t(TYPE_LABELS[type])}
                   {count > 0 ? ` ${count}` : ''}
                 </Text>
               </Pressable>
@@ -228,7 +289,7 @@ export function MapScreen() {
         </View>
       ) : markers.length === 0 && bounds ? (
         <View style={[styles.status, { top: insets.top + 64 }]}>
-          <Text style={styles.statusText}>Aucun lieu dans cette zone</Text>
+          <Text style={styles.statusText}>{t('map.noPlacesHere')}</Text>
         </View>
       ) : null}
 
@@ -240,7 +301,7 @@ export function MapScreen() {
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Centrer sur ma position"
+        accessibilityLabel={t('map.myLocation')}
         onPress={() => void centerOnUser()}
         disabled={isLocating}
         style={({ pressed }) => [
@@ -270,7 +331,7 @@ export function MapScreen() {
       {error ? (
         <View style={styles.errorOverlay}>
           <ErrorState
-            message={error instanceof Error ? error.message : 'Carte indisponible.'}
+            message={error instanceof Error ? error.message : t('map.unavailable')}
             onRetry={() => void refetch()}
           />
         </View>
@@ -279,9 +340,22 @@ export function MapScreen() {
       {selected ? (
         <MapMarkerCard
           marker={selected}
-          onClose={() => setSelected(null)}
+          onClose={() => {
+            setSelected(null);
+            setRoute(null);
+            mapRef.current?.clearRoute();
+          }}
           onPress={() => openDetail(navigation, selected)}
           onLayout={setCardHeight}
+          // L'action n'est proposée que si la position est connue : sans point
+          // de départ, l'itinéraire n'a pas de sens.
+          onRoute={userPosition ? () => void showRoute(selected) : undefined}
+          routeSummary={
+            route
+              ? `${formatDistance(route.distanceMeters)} · ${formatDuration(route.durationSeconds)} en voiture`
+              : undefined
+          }
+          isRouting={isRouting}
         />
       ) : null}
     </View>
@@ -354,12 +428,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface.background,
     ...shadow.soft,
   },
-  filterActive: { backgroundColor: colors.neutral[900] },
   filterDot: { width: 6, height: 6, borderRadius: radius.full },
   // 11 points : la taille des libellés de la barre d'onglets, donc déjà
   // employée ailleurs dans l'application et lisible sur un petit écran.
   filterLabel: { fontSize: 11, lineHeight: 14, color: colors.text.secondary, fontWeight: '700' },
-  filterLabelActive: { color: colors.text.inverse },
 
   status: {
     position: 'absolute',

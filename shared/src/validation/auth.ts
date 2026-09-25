@@ -23,8 +23,19 @@ export const forgotPasswordSchema = z.object({
 });
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 
+/**
+ * Réinitialisation par code.
+ *
+ * L'adresse accompagne le code : celui-ci ne fait que six chiffres et n'est
+ * unique que pour un compte donné. Sans l'adresse, il faudrait le chercher
+ * parmi tous les comptes, et deux utilisateurs pourraient recevoir le même.
+ */
 export const resetPasswordSchema = z.object({
-  token: z.string().min(16, 'Jeton invalide'),
+  email: emailSchema,
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'Le code comporte six chiffres'),
   password: passwordSchema,
 });
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
@@ -41,3 +52,35 @@ export const changePasswordSchema = z.object({
   newPassword: passwordSchema,
 });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+/**
+ * Connexion par Google.
+ *
+ * Un seul champ : le jeton d'identité. Ni adresse ni nom — ils sont dans le
+ * jeton, signés par Google. Les accepter séparément reviendrait à croire le
+ * client sur des données qu'il pourrait choisir.
+ */
+export const googleAuthSchema = z.object({
+  idToken: z.string().min(20),
+});
+export type GoogleAuthInput = z.infer<typeof googleAuthSchema>;
+
+/**
+ * Vérification de l'adresse par code.
+ *
+ * Six chiffres exactement, et uniquement des chiffres : le contrôle rejette
+ * avant toute requête à la base ce qui ne peut de toute façon pas être un code.
+ */
+export const verifyEmailSchema = z.object({
+  email: z.email().toLowerCase().trim(),
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'Le code comporte six chiffres'),
+});
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+
+export const resendVerificationSchema = z.object({
+  email: z.email().toLowerCase().trim(),
+});
+export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;

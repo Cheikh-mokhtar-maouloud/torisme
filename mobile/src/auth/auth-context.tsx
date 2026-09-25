@@ -25,6 +25,12 @@ interface AuthContextValue {
   isRestoring: boolean;
   isAuthenticated: boolean;
   login: (input: LoginInput) => Promise<void>;
+  /** Échange un jeton d'identité Google contre une session de l'application. */
+  loginWithGoogle: (idToken: string) => Promise<void>;
+  /**
+   * Crée le compte. **N'ouvre pas de session** : l'adresse doit d'abord être
+   * vérifiée. L'appelant enchaîne sur l'écran de saisie du code.
+   */
   register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -96,11 +102,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [persist],
   );
 
-  const register = useCallback(
-    async (input: RegisterInput) => {
-      await persist(await api.post<AuthResult>('/api/auth/register', input));
+  const loginWithGoogle = useCallback(
+    async (idToken: string) => {
+      /*
+       * Le jeton est transmis au serveur, qui seul le vérifie.
+       *
+       * L'application ne le décode pas et n'en tire aucune conclusion : un
+       * client peut être modifié, et croire sur parole ce qu'il affirme
+       * reviendrait à laisser n'importe qui ouvrir n'importe quelle session.
+       */
+      await persist(await api.post<AuthResult>('/api/auth/google', { idToken }));
     },
     [persist],
+  );
+
+  const register = useCallback(
+    async (input: RegisterInput) => {
+      /*
+       * Aucun `persist` : le serveur ne renvoie plus de jeton tant que
+       * l'adresse n'est pas vérifiée. Enregistrer une session ici échouerait
+       * silencieusement — le jeton serait `undefined` — et laisserait
+       * l'application dans un état à demi connecté.
+       */
+      await api.post('/api/auth/register', input);
+    },
+    // Aucune dépendance : la fonction n'ouvre plus de session et ne lit donc
+    // plus rien du composant.
+    [],
   );
 
   /** Rafraîchit l'utilisateur en mémoire après une modification du profil. */
@@ -129,11 +157,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isRestoring,
       isAuthenticated: user !== null,
       login,
+      loginWithGoogle,
       register,
       logout,
       refreshUser,
     }),
-    [user, isRestoring, login, register, logout, refreshUser],
+    [user, isRestoring, login, loginWithGoogle, register, logout, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

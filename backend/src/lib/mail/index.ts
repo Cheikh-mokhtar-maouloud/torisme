@@ -2,6 +2,7 @@ import { env } from '@/config/env';
 
 import { ConsoleMailProvider } from './console-provider';
 import { ResendMailProvider } from './resend-provider';
+import { SmtpMailProvider } from './smtp-provider';
 import type { MailProvider } from './types';
 
 export type { MailMessage, MailProvider } from './types';
@@ -30,10 +31,40 @@ export function mailer(): MailProvider {
     return cached;
   }
 
+  if (config.MAIL_PROVIDER === 'smtp') {
+    const missing = (
+      [
+        ['SMTP_HOST', config.SMTP_HOST],
+        ['SMTP_USER', config.SMTP_USER],
+        ['SMTP_PASSWORD', config.SMTP_PASSWORD],
+        ['MAIL_FROM', config.MAIL_FROM],
+      ] as const
+    )
+      .filter(([, value]) => !value)
+      .map(([name]) => name);
+
+    /*
+     * Les variables manquantes sont **nommées**. Un message générique du genre
+     * « configuration SMTP incomplète » oblige à relire le code pour savoir
+     * laquelle manque, au moment précis où le serveur refuse de démarrer.
+     */
+    if (missing.length > 0) {
+      throw new Error(`MAIL_PROVIDER=smtp exige : ${missing.join(', ')}.`);
+    }
+
+    cached = new SmtpMailProvider(config.MAIL_FROM!, {
+      host: config.SMTP_HOST!,
+      port: config.SMTP_PORT,
+      user: config.SMTP_USER!,
+      password: config.SMTP_PASSWORD!,
+    });
+    return cached;
+  }
+
   if (config.APP_ENV === 'production') {
     throw new Error(
       'Le fournisseur d’email « console » est interdit en production : ' +
-        'les messages ne partiraient jamais. Définissez MAIL_PROVIDER=resend.',
+        'les messages ne partiraient jamais. Définissez MAIL_PROVIDER=smtp ou resend.',
     );
   }
 

@@ -190,3 +190,60 @@ son absence**, et c'est le résultat de cette écriture qui décide de l'envoi. 
 fier au « une tâche, une exécution » de la file serait une erreur : une file
 garantit *au moins* une livraison, jamais exactement une. Le départage doit donc
 avoir lieu en base, seul endroit où deux workers concurrents se rencontrent.
+
+## Import de lieux depuis OpenStreetMap
+
+```bash
+npm run import:osm --workspace backend -- --dry-run   # compte sans écrire
+npm run import:osm --workspace backend                # import réel
+```
+
+### Pourquoi cette source, et pas Booking ou TripAdvisor
+
+Les fiches de ces plateformes, et surtout leurs photographies, appartiennent aux
+établissements ou aux photographes. Les recopier dans une plateforme
+concurrente est une contrefaçon, pas une zone grise — et leurs conditions
+d'utilisation interdisent explicitement l'extraction automatisée.
+
+OpenStreetMap est sous licence **ODbL** : la réutilisation commerciale est
+autorisée à condition de citer la source. C'est déjà le fond de carte de
+l'application.
+
+### Ce que la source donne, et ce qu'elle ne donne pas
+
+| Donnée | Disponible |
+| ------ | ---------- |
+| Nom, coordonnées | oui, pour tous |
+| Ville, rue | souvent ; sinon géocodage inverse par Nominatim |
+| Téléphone, site web | environ un lieu sur dix |
+| Étoiles | rarement, et repris seulement si annoncé |
+| **Description** | **non** |
+| **Photographies** | **non**, sauf sites liés à Wikidata |
+
+Les descriptions écrites par l'import sont donc **strictement factuelles**,
+construites à partir des étiquettes : « Hôtel situé à Nouadhibou, rue de la
+plage Raha. » Inventer un texte d'ambiance reviendrait à publier sous le nom de
+la plateforme des affirmations que personne n'a vérifiées, sur des
+établissements qui existent réellement.
+
+Les photographies ne viennent que de **Wikimedia Commons**, pour les lieux
+reliés par une étiquette `wikidata`. Cela ne concerne que quelques sites
+classés : les hôtels et restaurants n'en ont pas, et l'application affiche
+« Photo à venir ».
+
+### Tout est importé en brouillon
+
+Une donnée collaborative n'est pas vérifiée : un restaurant peut avoir fermé, un
+nom être mal orthographié, des coordonnées être approximatives. Publier
+directement afficherait aux voyageurs des informations dont personne n'a
+répondu. Le tri se fait depuis le dashboard.
+
+### Obligations à respecter
+
+- **Attribution** : « Données © contributeurs OpenStreetMap » doit figurer là où
+  ces fiches sont affichées. La carte l'affiche déjà pour les tuiles ; les
+  fiches importées relèvent de la même exigence.
+- **Identification** : Overpass refuse un agent utilisateur anonyme (réponse
+  406, dont le libellé évoque à tort une surcharge) et Nominatim bannit les
+  adresses trop insistantes. L'import se nomme et respecte une requête par
+  seconde.
